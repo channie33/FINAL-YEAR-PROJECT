@@ -1,0 +1,2 @@
+The database is called Better_Space. The initialization is in 'init_db.py'. 
+The schema is is 'schema.sql'. The database connection file itself is 'config.py' and the environment is in the 'env' file. 'dotenv'-loads environment variables from .env. 
