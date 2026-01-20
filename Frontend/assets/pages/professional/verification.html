@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Qualifications - Better Space</title>
+    <link rel="stylesheet" href="/assets/css/professionals/professional-verification.css">
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <span class="better">Better</span><br>
+            <span class="space">space</span>
+        </div>
+        <h1 class="page-title"><center>SUBMIT YOUR QUALIFICATIONS</center></h1>
+    </header>
+
+    <main class="container">
+        <div class="form-container">
+            <h2 class="section-title">SUBMIT DOCUMENTS BELOW:</h2>
+            
+            <form id="verificationForm">
+                <div class="upload-section">
+                    <label for="document-upload" class="upload-label">
+                        <div class="upload-box">
+                            <span class="file-icon">📄</span>
+                            <span class="file-name" id="fileName">No file chosen</span>
+                            <button type="button" class="browse-btn">+</button>
+                        </div>
+                    </label>
+                    <input type="file" id="document-upload" accept=".pdf,.jpg,.jpeg,.png" hidden>
+                    
+                    <p class="disclaimer">
+                        DISCLAIMER: YOUR DOCUMENTS NEED TO SHOW PROOF OF LICENSING AS A QUALIFIED THERAPIST / COUNSELLOR / PSYCHOLOGIST OR OTHER IN ORDER TO BE VERIFIED
+                    </p>
+                </div>
+                
+                <div class="form-group">
+                    <label>CATEGORY OF CARE:</label>
+                    <div class="select-wrapper">
+                        <select id="category" required>
+                            <option value="">Select category</option>
+                            <option value="Psychologist">Psychologist</option>
+                            <option value="Therapist">Therapist</option>
+                            <option value="Counsellor">Counsellor</option>
+                            <option value="Psychiatrist">Psychiatrist</option>
+                            <option value="Social Worker">Social Worker</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <span class="dropdown-icon">🔍</span>
+                    </div>
+                </div>
+                
+                <button type="submit" class="submit-btn">SUBMIT</button>
+            </form>
+        </div>
+    </main>
+
+    <script src="/assets/js/professional/professional-verification.js"></script>
+</body>
+</html>

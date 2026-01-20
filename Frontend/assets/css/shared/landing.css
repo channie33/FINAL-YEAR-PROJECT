@@ -1,0 +1,134 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Georgia', serif;
+    background: linear-gradient(135deg, #1a4d3e 0%, #2d6b5a 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.container {
+    text-align: center;
+    animation: fadeIn 1s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.logo-container {
+    background-color: #f5f4e8;
+    width: 340px;
+    height: 340px;
+    border-radius: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 80px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s ease;
+}
+
+.logo-container:hover {
+    transform: translateY(-5px);
+}
+
+.logo {
+    font-size: 48px;
+    color: #1a4d3e;
+    letter-spacing: -1px;
+}
+
+.logo .better {
+    display: block;
+    font-weight: 400;
+}
+
+.logo .space {
+    display: block;
+    font-weight: 400;
+    margin-left: 60px;
+}
+
+.buttons {
+    display: flex;
+    justify-content: center;
+    gap: 100px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    background-color: #f5f4e8;
+    color: #1a4d3e;
+    padding: 18px 60px;
+    font-size: 28px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    font-family: 'Georgia', serif;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    background-color: #ffffff;
+}
+
+.btn:active {
+    transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+    .logo-container {
+        width: 280px;
+        height: 280px;
+        margin-bottom: 60px;
+    }
+
+    .logo {
+        font-size: 40px;
+    }
+
+    .buttons {
+        gap: 40px;
+    }
+
+    .btn {
+        padding: 15px 50px;
+        font-size: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .logo-container {
+        width: 240px;
+        height: 240px;
+    }
+
+    .logo {
+        font-size: 34px;
+    }
+
+    .btn {
+        padding: 12px 40px;
+        font-size: 22px;
+    }
+}

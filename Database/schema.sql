@@ -1,15 +1,24 @@
 CREATE DATABASE IF NOT EXISTS Better_Space;
 USE  Better_Space;
 
+DROP TABLE IF EXISTS Messages;
+DROP TABLE IF EXISTS FeedbackRatings;
+DROP TABLE IF EXISTS SessionAppointments;
+DROP TABLE IF EXISTS ProfessionalSchedule;
+DROP TABLE IF EXISTS MentalHealthProfessionals;
+DROP TABLE IF EXISTS Students;
+DROP TABLE IF EXISTS Admins;
+
 CREATE TABLE Students (
     StudentID INT AUTO_INCREMENT PRIMARY KEY,
-    FullName VARCHAR NOT NULL,
+    FullName VARCHAR(255) NOT NULL,
     Email VARCHAR(100) NOT NULL UNIQUE,
-    Password VARCHAR(255) NOT NULL
+    Password VARCHAR(255) NOT NULL,
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE MentalHealthProfessionals (
     ProfessionalID INT AUTO_INCREMENT PRIMARY KEY,
-    FullName VARCHAR NOT NULL,
+    FullName VARCHAR(255) NOT NULL,
     Email VARCHAR(100) NOT NULL UNIQUE,
     Password VARCHAR(255) NOT NULL,
     Category ENUM(
@@ -21,7 +30,8 @@ CREATE TABLE MentalHealthProfessionals (
         'pastoral counsellors',
         'peer specialist'
     ) NOT NULL,
-    VerificationStatus ENUM('Pending', 'Verified', 'Rejected') NOT NULL
+    VerificationStatus ENUM('Pending', 'Verified', 'Rejected') NOT NULL,
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE ProfessionalSchedule (
     ScheduleID INT AUTO_INCREMENT PRIMARY KEY,
@@ -69,8 +79,9 @@ CREATE TABLE Messages (
 );
 CREATE TABLE Admins (
     AdminID INT AUTO_INCREMENT PRIMARY KEY,
-    Email VARCHAR NOT NULL UNIQUE,
-    Password VARCHAR(250) NOT NULL
+    Email VARCHAR(100) NOT NULL UNIQUE,
+    Password VARCHAR(250) NOT NULL,
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 

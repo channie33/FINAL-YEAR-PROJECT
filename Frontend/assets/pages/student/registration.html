@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Registration - Better Space</title>
+    <link rel="stylesheet" href="/assets/css/shared/registration.css">
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <span class="better">Better</span><br>
+            <span class="space">space</span>
+        </div>
+        <h1 class="page-title"><center>WELCOME !</center></h1>
+    </header>
+
+    <main class="container">
+        <div class="form-container">
+            <h2 class="form-title"><b>STUDENT</b></h2>
+            
+            <form id="studentForm">
+                <div class="form-group">
+                    <label>NAME:</label>
+                    <input type="text" id="student-name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>EMAIL:</label>
+                    <input type="email" id="student-email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>PASSWORD:</label>
+                    <input type="password" id="student-password" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>CONFIRM PASSWORD:</label>
+                    <input type="password" id="student-confirm-password" required>
+                </div>
+                <button type="submit" class="next-btn">
+                    <span class="arrow">→</span>
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <script src="/assets/js/student/student-registration.js"></script>
+</body>
+</html>

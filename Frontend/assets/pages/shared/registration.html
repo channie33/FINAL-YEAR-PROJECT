@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration - Better Space</title>
+    <link rel="stylesheet" href="/assets/css/shared/registration.css">
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <span class="better">Better</span><br>
+            <span class="space">space</span>
+        </div>
+        <h1 class="page-title"><center>REGISTRATION</center></h1>
+    </header>
+
+    <main class="container">
+        <div class="form-container">
+            <div class="user-type-selection">
+                <label class="radio-option">
+                    <input type="radio" name="userType" value="student" id="student-radio">
+                    <span class="radio-text">I'm a student</span>
+                </label>
+                
+                <label class="radio-option">
+                    <input type="radio" name="userType" value="professional" id="professional-radio">
+                    <span class="radio-text">I'm a mental health professional</span>
+                </label>
+                <button class="next-btn" onclick="goToNextPage()">
+                <span class="arrow">→</span>
+            </button>
+            </div>
+            
+        </div>
+    </main>
+
+    <script src="/assets/js/shared/registration.js"></script>
+</body>
+</html>
