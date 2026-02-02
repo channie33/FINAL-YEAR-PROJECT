@@ -7,7 +7,7 @@ def get_pending_verifications(request_handler):
     connection = get_db_connection()
     if not connection:
         request_handler._set_headers(500, 'application/json')#if it fails to connect to the database sends error message
-        response = json.dumps({"status": "error", "message": "Database connection failed"})
+        response = json.dumps({"status": "error", "error": "Database connection failed"})
         request_handler.wfile.write(response.encode())
         return
     
@@ -21,7 +21,7 @@ def get_pending_verifications(request_handler):
             Email,
             Category,
             VerificationStatus,
-            CreatedAt
+            CreatedAt as submission_date
         FROM MentalHealthProfessionals
         WHERE VerificationStatus = 'Pending'
         ORDER BY CreatedAt DESC
@@ -32,13 +32,13 @@ def get_pending_verifications(request_handler):
         request_handler._set_headers(200, 'application/json')#sends a success response
         response = json.dumps({
             "status": "success",
-            "data": professionals
+            "pending_verifications": professionals
         })
         request_handler.wfile.write(response.encode())
         
     except Exception as e:#error handling
         request_handler._set_headers(500, 'application/json')
-        response = json.dumps({"status": "error", "message": str(e)})
+        response = json.dumps({"status": "error", "error": str(e)})
         request_handler.wfile.write(response.encode())
     finally:
         cursor.close()
@@ -49,25 +49,25 @@ def verify_professional(request_handler, data):
     
     #to extract data from the request
     professional_id = data.get('professional_id')
-    action = data.get('action')  #expected 'approve' or 'reject'
+    status = data.get('status')  #expected 'approved' or 'rejected'
     
-    if not all([professional_id, action]):#ensures required fields are present
+    if not all([professional_id, status]):#ensures required fields are present
         request_handler._set_headers(400, 'application/json')
-        response = json.dumps({"status": "error", "message": "Missing required fields"})
+        response = json.dumps({"status": "error", "error": "Missing required fields"})
         request_handler.wfile.write(response.encode())
         return
     
     connection = get_db_connection()
     if not connection:
         request_handler._set_headers(500, 'application/json')
-        response = json.dumps({"status": "error", "message": "Database connection failed"})
+        response = json.dumps({"status": "error", "error": "Database connection failed"})
         request_handler.wfile.write(response.encode())
         return
     
     cursor = connection.cursor()
     
     try: #to decide new verfication status based on action
-        new_status = 'Verified' if action == 'approve' else 'Rejected'
+        new_status = 'Verified' if status == 'approved' else 'Rejected'
         
         query = """
         UPDATE MentalHealthProfessionals 
@@ -80,7 +80,7 @@ def verify_professional(request_handler, data):
         request_handler._set_headers(200, 'application/json')#sends success response
         response = json.dumps({
             "status": "success",
-            "message": f"Professional {action}d successfully"
+            "message": f"Professional {status} successfully"
         })
         request_handler.wfile.write(response.encode())
         
@@ -88,7 +88,7 @@ def verify_professional(request_handler, data):
         #to undo changes if something goes wrong
         connection.rollback()
         request_handler._set_headers(500, 'application/json')
-        response = json.dumps({"status": "error", "message": str(e)})
+        response = json.dumps({"status": "error", "error": str(e)})
         request_handler.wfile.write(response.encode())
     finally:
         cursor.close()
@@ -100,7 +100,7 @@ def get_all_users(request_handler):
     connection = get_db_connection()
     if not connection:
         request_handler._set_headers(500, 'application/json')
-        response = json.dumps({"status": "error", "message": "Database connection failed"})
+        response = json.dumps({"status": "error", "error": "Database connection failed"})
         request_handler.wfile.write(response.encode())
         return
     
@@ -109,14 +109,14 @@ def get_all_users(request_handler):
     try:
         # To get all students
         cursor.execute("""
-            SELECT StudentID as id, FullName, Email, 'Student' as UserType, CreatedAt
+            SELECT StudentID as id, FullName, Email, 'Student' as user_type, CreatedAt
             FROM Students
         """)
         students = cursor.fetchall()
         
         # To get all professionals
         cursor.execute("""
-            SELECT ProfessionalID as id, FullName, Email, 'Professional' as UserType, 
+            SELECT ProfessionalID as id, FullName, Email, 'Professional' as user_type, 
                    VerificationStatus, CreatedAt
             FROM MentalHealthProfessionals
         """)
@@ -128,13 +128,13 @@ def get_all_users(request_handler):
         request_handler._set_headers(200, 'application/json')
         response = json.dumps({
             "status": "success",
-            "data": all_users
+            "users": all_users
         })
         request_handler.wfile.write(response.encode())
         
     except Exception as e:
         request_handler._set_headers(500, 'application/json')
-        response = json.dumps({"status": "error", "message": str(e)})
+        response = json.dumps({"status": "error", "error": str(e)})
         request_handler.wfile.write(response.encode())
     finally:
         cursor.close()

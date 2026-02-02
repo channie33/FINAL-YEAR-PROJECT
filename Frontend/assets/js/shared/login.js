@@ -30,7 +30,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             localStorage.setItem('pending_user_type', data.user.user_type);
             
             // Redirect to OTP page
-            window.location.href = '/pages/shared/otp.html';
+            window.location.href = '/assets/pages/shared/otp.html';
         } else {
             alert('Login failed: ' + data.message);
         }

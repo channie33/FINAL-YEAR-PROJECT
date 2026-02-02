@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Better Space – Sessions</title>
+    <link rel="stylesheet" href="/assets/css/students/student-session.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="/assets/pages/student/home.html" class="logo">Better<br><span>space</span></a>
+    <ul class="nav-links">
+        <li><a href="/assets/pages/student/home.html">HOME</a></li>
+        <li><a href="/assets/pages/student/messaging.html">MESSAGES</a></li>
+        <li><a href="/assets/pages/student/sessions.html" class="active">SESSIONS</a></li>
+    </ul>
+    <div class="search-bar">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" placeholder="Search...">
+    </div>
+</nav>
+<div class="wave"></div>
+
+<!-- Cards injected by sessions.js -->
+<div class="sess-list" id="sessList"></div>
+
+<!-- Book new session -->
+<button class="book-btn" id="bookBtn">
+    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+
+<script src="/assets/js/student/student-sessions.js"></script>
+</body>
+</html>

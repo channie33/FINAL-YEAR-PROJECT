@@ -117,6 +117,54 @@ body {
     }
 }
 
+.landing-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 40px;
+}
+
+.landing-nav .logo {
+    color: white;
+    font-size: 24px;
+    font-weight: normal;
+}
+
+.landing-nav .logo span {
+    font-style: italic;
+}
+
+.landing-association {
+    color: rgba(255, 255, 255, 0.7);
+    font-family: 'Georgia', serif;
+    font-size: 13px;
+    font-style: italic;
+    max-width: 260px;
+    line-height: 1.4;
+}
+
+.admin-login-link {
+    color: rgba(255, 255, 255, 0.75);
+    font-family: 'Georgia', serif;
+    font-size: 14px;
+    text-decoration: none;
+    letter-spacing: 0.5px;
+    padding: 8px 20px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 20px;
+}
+
+.admin-login-link:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+
 @media (max-width: 480px) {
     .logo-container {
         width: 240px;

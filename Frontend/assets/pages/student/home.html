@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Better Space - Home</title>
+    <link rel="stylesheet" href="/assets/css/students/student-home.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="/assets/pages/student/home.html" class="logo">Better<br><span class="space">space</span></a>
+    <ul class="nav-links">
+        <li><a href="/assets/pages/student/home.html" class="active">HOME</a></li>
+        <li><a href="/assets/pages/student/messaging.html">MESSAGES</a></li>
+        <li><a href="/assets/pages/student/sessions.html">SESSIONS</a></li>
+    </ul>
+    <div class="search-bar">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" placeholder="Search...">
+    </div>
+</nav>
+<div class="wave"></div>
+
+<div class="home-layout">
+
+    <!-- Left: student profile -->
+    <div class="home-left">
+        <div class="profile-card">
+            <div class="card-title">STUDENT</div>
+            <div class="field">Email &nbsp;: <span class="value" id="profileEmail"></span></div>
+            <div class="field">Name &nbsp;&nbsp;: <span class="value" id="profileName"></span></div>
+        </div>
+    </div>
+
+    <!-- Right: info cards -->
+    <div class="home-right">
+        <div class="info-card">
+            <div class="card-title">YOUR MENTAL HEALTH<br>PROFESSIONALS</div>
+            <div class="rule"></div>
+            <div class="rule"></div>
+            <div class="rule"></div>
+            <div class="rule"></div>
+            <div class="rule"></div>
+        </div>
+        <div class="info-card">
+            <div class="card-title">REVIEWS LEFT</div>
+            <div class="rule"></div>
+            <div class="rule"></div>
+            <div class="rule"></div>
+            <div class="rule"></div>
+            <div class="rule"></div>
+        </div>
+    </div>
+
+</div>
+
+<button class="logout-btn" id="logoutBtn">LOG OUT</button>
+
+<script src="/assets/js/student/student-home.js"></script>
+</body>
+</html>

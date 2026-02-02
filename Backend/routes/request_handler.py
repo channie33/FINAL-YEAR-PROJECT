@@ -1,10 +1,12 @@
 from http.server import BaseHTTPRequestHandler #base class for handling http requests 
 import json #for json parsing and responses
-from urllib.parse import urlparse 
+from urllib.parse import urlparse, parse_qs
 import mimetypes #used for serving correct content types
 import os #filepath handling
 from .auth import handle_register, handle_login, handle_verify_otp
-from .professionals import handle_submit_verification
+from .professionals import handle_submit_verification, get_professional_profile, get_professional_messages, get_professional_sessions
+from .student import get_student_profile, get_student_messages, get_student_sessions
+from .admin import get_pending_verifications, verify_professional, get_all_users
 from .api import test_database
 
 # Frontend directory
@@ -27,6 +29,7 @@ class RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed_path = urlparse(self.path)
         path = parsed_path.path
+        query_params = parse_qs(parsed_path.query)
         
         # to load homepage
         if path == '/' or path == '':
@@ -50,6 +53,64 @@ class RequestHandler(BaseHTTPRequestHandler):
         #api endpoint to test database connection
         elif path == '/api/test-db':
             test_database(self)
+            
+        # Student API endpoints
+        elif path == '/api/student/profile':
+            user_id = query_params.get('user_id', [None])[0]
+            if user_id:
+                get_student_profile(self, user_id)
+            else:
+                self._set_headers(400, 'application/json')
+                self.wfile.write(json.dumps({"error": "Missing user_id parameter"}).encode())
+                
+        elif path == '/api/student/messages':
+            user_id = query_params.get('user_id', [None])[0]
+            if user_id:
+                get_student_messages(self, user_id)
+            else:
+                self._set_headers(400, 'application/json')
+                self.wfile.write(json.dumps({"error": "Missing user_id parameter"}).encode())
+                
+        elif path == '/api/student/sessions':
+            user_id = query_params.get('user_id', [None])[0]
+            if user_id:
+                get_student_sessions(self, user_id)
+            else:
+                self._set_headers(400, 'application/json')
+                self.wfile.write(json.dumps({"error": "Missing user_id parameter"}).encode())
+            
+        # Professional API endpoints
+        elif path == '/api/professional/profile':
+            user_id = query_params.get('user_id', [None])[0]
+            if user_id:
+                get_professional_profile(self, user_id)
+            else:
+                self._set_headers(400, 'application/json')
+                self.wfile.write(json.dumps({"error": "Missing user_id parameter"}).encode())
+                
+        elif path == '/api/professional/messages':
+            user_id = query_params.get('user_id', [None])[0]
+            if user_id:
+                get_professional_messages(self, user_id)
+            else:
+                self._set_headers(400, 'application/json')
+                self.wfile.write(json.dumps({"error": "Missing user_id parameter"}).encode())
+                
+        elif path == '/api/professional/sessions':
+            user_id = query_params.get('user_id', [None])[0]
+            if user_id:
+                get_professional_sessions(self, user_id)
+            else:
+                self._set_headers(400, 'application/json')
+                self.wfile.write(json.dumps({"error": "Missing user_id parameter"}).encode())
+            
+        # Admin API endpoints
+        elif path == '/api/admin/users':
+            get_all_users(self)
+            
+        elif path == '/api/admin/verifications':
+            get_pending_verifications(self)
+            
         else:#unknown path
             self._set_headers(404)
             self.wfile.write(b'404 - Not Found')
@@ -76,7 +137,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 response = json.dumps({"status": "error", "message": "Endpoint not found"})
                 self.wfile.write(response.encode())
                 
-                #JSON request handling
+        #JSON request handling
         else:
             try:
                 data = json.loads(post_data.decode('utf-8'))#convert request body from JSON to python dict
@@ -94,6 +155,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                 handle_login(self, data)
             elif path == '/api/verify-otp':
                 handle_verify_otp(self, data)
+            elif path == '/api/admin/verify-professional':
+                verify_professional(self, data)
             else:
                 self._set_headers(404, 'application/json')
                 response = json.dumps({"status": "error", "message": "Endpoint not found"})

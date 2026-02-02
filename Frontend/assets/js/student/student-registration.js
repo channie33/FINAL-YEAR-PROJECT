@@ -73,7 +73,7 @@ document.getElementById('studentForm').addEventListener('submit', async function
             localStorage.setItem('pending_user_id', data.user_id);
             localStorage.setItem('pending_user_type', data.user_type);
             // Redirect to OTP page
-            window.location.href = '/pages/shared/otp.html';
+            window.location.href = '/assets/pages/shared/otp.html';
         } else {
             alert('Registration failed: ' + data.message);
         }

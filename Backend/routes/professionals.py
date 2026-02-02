@@ -3,6 +3,175 @@ import os
 from config import get_db_connection
 from datetime import datetime
 
+def get_professional_profile(request_handler, user_id):
+    """Get professional profile data"""
+    connection = get_db_connection()
+    if not connection:
+        request_handler._set_headers(500, 'application/json')
+        request_handler.wfile.write(json.dumps({"status": "error", "message": "Database connection failed"}).encode())
+        return
+    
+    try:
+        cursor = connection.cursor(dictionary=True)
+        
+        # Get professional profile
+        cursor.execute("""
+            SELECT 
+                ProfessionalID,
+                FullName,
+                Email,
+                Category,
+                VerificationStatus,
+                CreatedAt
+            FROM MentalHealthProfessionals
+            WHERE ProfessionalID = %s
+        """, (user_id,))
+        
+        professional = cursor.fetchone()
+        
+        if not professional:
+            request_handler._set_headers(404, 'application/json')
+            request_handler.wfile.write(json.dumps({"status": "error", "message": "Professional not found"}).encode())
+            return
+        
+        # Get students assigned to this professional
+        cursor.execute("""
+            SELECT DISTINCT
+                s.StudentID,
+                s.FullName,
+                s.Email,
+                COUNT(sa.AppointmentID) as session_count
+            FROM Students s
+            LEFT JOIN SessionAppointments sa ON s.StudentID = sa.StudentID
+            WHERE sa.ProfessionalID = %s
+            GROUP BY s.StudentID
+            ORDER BY s.FullName
+        """, (user_id,))
+        
+        students = cursor.fetchall()
+        
+        # Get ratings/reviews for this professional
+        cursor.execute("""
+            SELECT 
+                fr.FeedbackID,
+                fr.StudentID,
+                s.FullName as student_name,
+                fr.Rating,
+                fr.FeedbackText
+            FROM FeedbackRatings fr
+            JOIN Students s ON fr.StudentID = s.StudentID
+            WHERE fr.ProfessionalID = %s
+            ORDER BY fr.FeedbackID DESC
+        """, (user_id,))
+        
+        reviews = cursor.fetchall()
+        
+        # Calculate average rating
+        avg_rating = sum(r['Rating'] for r in reviews) / len(reviews) if reviews else 0
+        
+        request_handler._set_headers(200, 'application/json')
+        response = json.dumps({
+            "status": "success",
+            "data": {
+                "profile": professional,
+                "students": students,
+                "reviews": reviews,
+                "average_rating": round(avg_rating, 2)
+            }
+        })
+        request_handler.wfile.write(response.encode())
+        
+    except Exception as e:
+        request_handler._set_headers(500, 'application/json')
+        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode())
+    finally:
+        cursor.close()
+        connection.close()
+
+
+def get_professional_messages(request_handler, user_id):
+    """Get all conversations for a professional"""
+    connection = get_db_connection()
+    if not connection:
+        request_handler._set_headers(500, 'application/json')
+        request_handler.wfile.write(json.dumps({"error": "Database connection failed"}).encode())
+        return
+    
+    try:
+        cursor = connection.cursor(dictionary=True)
+        
+        # Get unique students professional has messaged
+        cursor.execute("""
+            SELECT DISTINCT
+                s.StudentID,
+                s.FullName,
+                MAX(m.SentAt) as last_message_time
+            FROM Messages m
+            JOIN Students s ON m.StudentID = s.StudentID
+            WHERE m.ProfessionalID = %s
+            GROUP BY s.StudentID
+            ORDER BY last_message_time DESC
+        """, (user_id,))
+        
+        conversations = cursor.fetchall()
+        
+        request_handler._set_headers(200, 'application/json')
+        response = json.dumps({
+            "status": "success",
+            "data": conversations
+        })
+        request_handler.wfile.write(response.encode())
+        
+    except Exception as e:
+        request_handler._set_headers(500, 'application/json')
+        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode())
+    finally:
+        cursor.close()
+        connection.close()
+
+
+def get_professional_sessions(request_handler, user_id):
+    """Get all sessions for a professional"""
+    connection = get_db_connection()
+    if not connection:
+        request_handler._set_headers(500, 'application/json')
+        request_handler.wfile.write(json.dumps({"status": "error", "message": "Database connection failed"}).encode())
+        return
+    
+    try:
+        cursor = connection.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT 
+                sa.AppointmentID,
+                sa.SessionDate,
+                s.StudentID,
+                s.FullName as student_name,
+                ps.TimeSlot
+            FROM SessionAppointments sa
+            JOIN Students s ON sa.StudentID = s.StudentID
+            JOIN ProfessionalSchedule ps ON sa.ScheduleID = ps.ScheduleID
+            WHERE sa.ProfessionalID = %s
+            ORDER BY sa.SessionDate DESC
+        """, (user_id,))
+        
+        sessions = cursor.fetchall()
+        
+        request_handler._set_headers(200, 'application/json')
+        response = json.dumps({
+            "status": "success",
+            "data": sessions
+        })
+        request_handler.wfile.write(response.encode())
+        
+    except Exception as e:
+        request_handler._set_headers(500, 'application/json')
+        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode())
+    finally:
+        cursor.close()
+        connection.close()
+
+
 def save_verification_documents(user_id, category, document_data, filename):
     """Save verification documents and update professional record"""
     

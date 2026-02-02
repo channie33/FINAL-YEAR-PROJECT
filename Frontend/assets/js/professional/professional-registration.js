@@ -74,7 +74,7 @@ document.getElementById('professionalForm').addEventListener('submit', async fun
             localStorage.setItem('pending_user_id', data.user_id);
             localStorage.setItem('pending_user_type', data.user_type);
             // Redirect to professional verification page
-            window.location.href = '/pages/professional/verification.html';
+            window.location.href = '/assets/pages/professional/verification.html';
         } else {
             alert('Registration failed: ' + data.message);
         }

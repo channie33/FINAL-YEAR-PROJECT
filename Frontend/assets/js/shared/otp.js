@@ -39,7 +39,7 @@ async function verifyOTP() {
 
     if (!userId || !userType) {
         alert('Session expired. Please register again.');
-        window.location.href = '/pages/shared/registration.html';
+        window.location.href = '/assets/pages/shared/registration.html';
         return;
     }
 
@@ -62,7 +62,7 @@ async function verifyOTP() {
             alert('Email verified successfully!');
             localStorage.removeItem('pending_user_id');
             localStorage.removeItem('pending_user_type');
-            window.location.href = '/pages/student/student-home.html';
+            window.location.href = '/assets/pages/student/home.html';
         } else {
             alert('Invalid or expired OTP: ' + data.message);
             otpInputs.forEach(input => input.value = '');

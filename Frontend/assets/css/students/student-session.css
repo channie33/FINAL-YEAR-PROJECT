@@ -1,0 +1,159 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Georgia', serif;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+}
+.navbar {
+    background: linear-gradient(135deg, #1a4d3e 0%, #2d6b5a 100%);
+    padding: 16px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo {
+    color: #f5f4e8;
+    font-size: 24px;
+    font-weight: normal;
+    text-decoration: none;
+    line-height: 1.2;
+}
+.logo span { font-style: italic; }
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.nav-links a {
+    color: #f5f4e8;
+    text-decoration: none;
+    font-family: 'Georgia', serif;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    padding: 8px 24px;
+    border: 2px solid transparent;
+    border-radius: 22px;
+    transition: background-color 0.2s;
+}
+.nav-links a:hover {
+    background-color: rgba(255,255,255,0.1);
+}
+.nav-links a.active {
+    border-color: #f5f4e8;
+}
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    background-color: rgba(255,255,255,0.18);
+    border-radius: 20px;
+    padding: 7px 14px;
+    gap: 8px;
+    width: 170px;
+}
+.search-bar svg {
+    width: 16px;
+    height: 16px;
+    fill: white;
+    flex-shrink: 0;
+}
+.search-bar input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: white;
+    font-family: 'Georgia', serif;
+    font-size: 13px;
+    width: 100%;
+}
+.search-bar input::placeholder {
+    color: rgba(255,255,255,0.55);
+}
+
+.wave {
+    height: 26px;
+    background: linear-gradient(135deg, #1a4d3e 0%, #2d6b5a 100%);
+    position: relative;
+}
+.wave::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 26px;
+    background-color: #f5f5f5;
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+}
+
+.sess-list {
+    max-width: 680px;
+    margin: 50px auto 0;
+    padding: 0 40px;
+}
+
+.sess-card {
+    background-color: white;
+    border: 2.5px solid #1a4d3e;
+    border-radius: 28px;
+    padding: 22px 34px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+.sess-card:hover {
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+}
+.sess-card .sess-name {
+    font-size: 15px;
+    font-weight: bold;
+    color: #1a4d3e;
+}
+.sess-card .sess-date {
+    font-size: 15px;
+    font-weight: bold;
+    color: #1a4d3e;
+    letter-spacing: 0.3px;
+}
+
+/* + book button */
+.book-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    margin: 24px auto 0;
+    border-radius: 50%;
+    border: 2.5px solid #1a4d3e;
+    background: white;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.15s;
+}
+.book-btn:hover {
+    background-color: #1a4d3e;
+    transform: scale(1.07);
+}
+.book-btn svg {
+    width: 22px;
+    height: 22px;
+    stroke: #1a4d3e;
+    stroke-width: 2.5;
+    fill: none;
+    transition: stroke 0.2s;
+}
+.book-btn:hover svg { stroke: white; }
+
+
+
+

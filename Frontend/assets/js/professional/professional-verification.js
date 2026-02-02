@@ -30,7 +30,7 @@ document.getElementById('verificationForm').addEventListener('submit', async fun
     
     if (!user.user_id) {
         alert('Session expired. Please log in again.');
-        window.location.href = '/pages/shared/login.html';
+        window.location.href = '/assets/pages/shared/login.html';
         return;
     }
     
@@ -50,7 +50,7 @@ document.getElementById('verificationForm').addEventListener('submit', async fun
         
         if (response.ok) {
             alert('Documents submitted successfully! Your account will be verified by our admin team.');
-            window.location.href = '/pages/shared/login.html';
+            window.location.href = '/assets/pages/shared/login.html';
         } else {
             alert('Submission failed: ' + data.message);
         }

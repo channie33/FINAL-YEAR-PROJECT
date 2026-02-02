@@ -1,9 +1,9 @@
 function navigateToRegister() {
-    window.location.href = './pages/shared/registration.html';
+    window.location.href = '/assets/pages/shared/registration.html';
 }
 
 function navigateToLogin() {
-    window.location.href = './pages/shared/login.html';
+    window.location.href = '/assets/pages/shared/login.html';
 }
 
 // This adds a subtle animation on the loading
