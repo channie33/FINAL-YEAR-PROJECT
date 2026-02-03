@@ -5,6 +5,19 @@ document.addEventListener('DOMContentLoaded', async function () {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userId = user.id || user.user_id;
 
+    // Handle search bar navigation
+    const searchInput = document.querySelector('.search-bar input');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                const query = this.value.trim();
+                if (query) {
+                    window.location.href = `/assets/pages/student/search.html?q=${encodeURIComponent(query)}`;
+                }
+            }
+        });
+    }
+
     // Fetch and display student profile
     async function loadStudentProfile() {
         try {
@@ -63,7 +76,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', function () {
             localStorage.clear();
-            window.location.href = '/assets/pages/shared/index.html';
+            window.location.href = '../shared/index.html';
         });
     }
 

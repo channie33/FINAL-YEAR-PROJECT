@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelector('.sidebar-item.logout').addEventListener('click', function (e) {
         e.preventDefault();
         sessionStorage.removeItem("betterspace_admin");
-        window.location.href = "login.html";
+        window.location.href = "../../../shared/index.html";
     });
 
 });
