@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', function () {
             localStorage.clear();
-            window.location.href = '../shared/index.html';
+            window.location.href = '/assets/pages/shared/index.html';
         });
     }
 
