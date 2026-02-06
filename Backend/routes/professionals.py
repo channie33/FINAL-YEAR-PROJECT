@@ -3,6 +3,41 @@ import os
 from config import get_db_connection
 from datetime import datetime
 
+def get_all_professionals(request_handler):
+    """Get all verified professionals for search/listing"""
+    connection = get_db_connection()
+    if not connection:
+        request_handler._set_headers(500, 'application/json')
+        request_handler.wfile.write(json.dumps({"status": "error", "message": "Database connection failed"}).encode())
+        return
+
+    try:
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT 
+                ProfessionalID,
+                FullName,
+                Email,
+                Category
+            FROM MentalHealthProfessionals
+            WHERE VerificationStatus = 'Verified'
+            ORDER BY FullName
+        """)
+        professionals = cursor.fetchall()
+
+        request_handler._set_headers(200, 'application/json')
+        response = json.dumps({
+            "status": "success",
+            "data": professionals
+        })
+        request_handler.wfile.write(response.encode())
+    except Exception as e:
+        request_handler._set_headers(500, 'application/json')
+        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode())
+    finally:
+        cursor.close()
+        connection.close()
+
 def get_professional_profile(request_handler, user_id):
     """Get professional profile data"""
     connection = get_db_connection()

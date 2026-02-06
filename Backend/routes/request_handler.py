@@ -3,8 +3,8 @@ import json #for json parsing and responses
 from urllib.parse import urlparse, parse_qs
 import mimetypes #used for serving correct content types
 import os #filepath handling
-from .auth import handle_register, handle_login, handle_verify_otp
-from .professionals import handle_submit_verification, get_professional_profile, get_professional_messages, get_professional_sessions
+from .auth import handle_register, handle_login, handle_verify_otp, handle_get_user
+from .professionals import handle_submit_verification, get_professional_profile, get_professional_messages, get_professional_sessions, get_all_professionals
 from .student import get_student_profile, get_student_messages, get_student_sessions
 from .admin import get_pending_verifications, verify_professional, get_all_users
 from .api import test_database
@@ -103,6 +103,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             else:
                 self._set_headers(400, 'application/json')
                 self.wfile.write(json.dumps({"error": "Missing user_id parameter"}).encode())
+        
+        elif path == '/api/professionals':
+            get_all_professionals(self)
             
         # Admin API endpoints
         elif path == '/api/admin/users':
@@ -111,6 +114,11 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == '/api/admin/verifications':
             get_pending_verifications(self)
             
+        elif path == '/api/user':
+            user_id = query_params.get('user_id', [None])[0]
+            user_type = query_params.get('user_type', [None])[0]
+            handle_get_user(self, user_id, user_type)
+
         else:#unknown path
             self._set_headers(404)
             self.wfile.write(b'404 - Not Found')

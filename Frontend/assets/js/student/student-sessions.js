@@ -20,20 +20,17 @@ document.addEventListener('DOMContentLoaded', async function () {
     /* State*/
     var calYear, calMonth, selectedDate = null, selectedSlot = null;
 
-    /* Demo professionals (populated from backend when online) */
-    var professionals = [
-        { id: 1, name: 'Dr. Sarah Mitchell',  category: 'Anxiety & Stress' },
-        { id: 2, name: 'Dr. James Carter',    category: 'Depression' },
-        { id: 3, name: 'Dr. Amina Okafor',    category: 'Trauma & PTSD' }
-    ];
+    /* Professionals (populated from backend) */
+    var professionals = [];
 
-    /* Demo time slots – keyed by date string; backend replaces this */
-    var slotData = {
-        // '2026-02-10' : [ { time:'09:00', booked:true }, … ]
-    };
+    var userId = getLoggedInUserId();
+    if (!userId) {
+        window.location.href = '/assets/pages/shared/login.html';
+        return;
+    }
 
     /* Render existing sessions */
-    var sessions = await fetchSessions();
+    var sessions = await fetchSessions(userId);
     renderList(sessions);
 
     /* Wire + button*/
@@ -75,30 +72,29 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // FETCH helpers
 
-
-    async function fetchSessions() {
+    async function fetchSessions(userId) {
         try {
-            var res = await fetch('/api/sessions/mine', { credentials: 'include' });
+            var res = await fetch('/api/student/sessions?user_id=' + userId);
             if (res.ok) {
                 var data = await res.json();
-                if (data.sessions && data.sessions.length > 0) return data.sessions;
+                if (data.status === 'success' && data.data) return data.data;
             }
-            return demoSessions();
-        } catch (_) { return demoSessions(); }
+            return [];
+        } catch (_) { return []; }
     }
 
     async function fetchProfessionals() {
         try {
-            var res = await fetch('/api/users/professionals', { credentials: 'include' });
+            var res = await fetch('/api/student/profile?user_id=' + userId);
             if (res.ok) {
                 var data = await res.json();
-                if (data.professionals && data.professionals.length > 0) {
-                    professionals = data.professionals.map(function (p) {
-                        return { id: p.id, name: (p.first_name + ' ' + p.last_name).trim(), category: p.category || '' };
+                if (data.status === 'success' && data.data && data.data.professionals && data.data.professionals.length > 0) {
+                    professionals = data.data.professionals.map(function (p) {
+                        return { id: p.ProfessionalID, name: p.FullName, category: p.Category || '' };
                     });
                 }
             }
-        } catch (_) { /* keep demo */ }
+        } catch (_) { /* keep empty list */ }
     }
 
     async function fetchSlotsForDate(dateStr) {
@@ -110,32 +106,24 @@ document.addEventListener('DOMContentLoaded', async function () {
                 if (data.slots) return data.slots;
             }
         } catch (_) { /* fall through */ }
-        // Demo: first slot booked, rest available
-        return [
-            { time: '09:00', booked: true  },
-            { time: '11:00', booked: false },
-            { time: '14:00', booked: false }
-        ];
-    }
-    // DEMO DATA
-
-    function demoSessions() {
-        return [
-            { name: 'JOHN DOE', scheduled_at: null },
-            { name: 'JOHN DOE', scheduled_at: null },
-            { name: 'JOHN DOE', scheduled_at: null }
-        ];
+        return [];
     }
 
     // RENDER — session list
 
     function renderList(list) {
         listEl.innerHTML = '';
+
+        if (!list || list.length === 0) {
+            listEl.innerHTML = '<p style="padding: 20px; text-align: center; color: #666;">No sessions yet</p>';
+            return;
+        }
+
         list.forEach(function (sess) {
             var card = document.createElement('div');
             card.className = 'sess-card';
-            var name    = (sess.name || sess.student || sess.professional_name || 'UNKNOWN').toUpperCase();
-            var dateStr = sess.scheduled_at ? formatDateTime(sess.scheduled_at) : 'DATE AND TIME';
+            var name    = (sess.FullName || sess.name || sess.student || sess.professional_name || 'UNKNOWN').toUpperCase();
+            var dateStr = buildSessionDateTime(sess);
             card.innerHTML =
                 '<div class="sess-name">' + name    + '</div>' +
                 '<div class="sess-date">' + dateStr + '</div>';
@@ -149,14 +137,16 @@ document.addEventListener('DOMContentLoaded', async function () {
         // seed professional dropdown
         await fetchProfessionals();
         profSelect.innerHTML = '<option value="" disabled selected>MENTAL HEALTH PROFESSIONAL</option>';
-        professionals.forEach(function (p) {
-            profSelect.innerHTML += '<option value="' + p.id + '">' + p.name + '</option>';
-        });
+        if (professionals.length > 0) {
+            professionals.forEach(function (p) {
+                profSelect.innerHTML += '<option value="' + p.id + '">' + p.name + '</option>';
+            });
+        }
 
         // reset state
         selectedDate = null;
         selectedSlot = null;
-        dateLabel.textContent = 'DATE AND TIME';
+        dateLabel.textContent = 'Select date and time';
         calTimeWrap.classList.remove('open');
 
         overlay.classList.add('open');
@@ -236,11 +226,15 @@ document.addEventListener('DOMContentLoaded', async function () {
               String(selectedDate.getDate()).padStart(2,'0')
             : '';
 
-        var slots = dateStr ? await fetchSlotsForDate(dateStr) : [
-            { time: '09:00', booked: true  },
-            { time: '11:00', booked: false },
-            { time: '14:00', booked: false }
-        ];
+        var slots = dateStr ? await fetchSlotsForDate(dateStr) : [];
+
+        if (!slots || slots.length === 0) {
+            var empty = document.createElement('div');
+            empty.className = 'time-slot-row';
+            empty.textContent = 'No available slots';
+            timeSlotsEl.appendChild(empty);
+            return;
+        }
 
         slots.forEach(function (slot) {
             var row = document.createElement('div');
@@ -272,7 +266,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     // SUBMIT
-    
 
     async function submitBooking() {
         var profId = profSelect.value;
@@ -298,20 +291,15 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (res.ok) {
                 closeModal();
                 // refresh list
-                var updated = await fetchSessions();
+                var updated = await fetchSessions(userId);
                 renderList(updated);
                 return;
             }
         } catch (_) { /* fall through */ }
 
-        // Backend offline — just show confirmation and close
-        alert('Session booked!\n' + professionals.find(function(p){ return p.id == profId; }).name +
-              '\n' + payload.date + ' at ' + payload.time);
-        closeModal();
+        alert('Could not book session. Please try again later.');
     }
 
-
-    
     // UTILS
 
     function formatDateTime(raw) {
@@ -321,5 +309,29 @@ document.addEventListener('DOMContentLoaded', async function () {
             var time = d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', hour12:false });
             return date + ' ' + time;
         } catch (_) { return raw; }
+    }
+
+    function buildSessionDateTime(sess) {
+        if (sess.SessionDate && sess.TimeSlot) {
+            try {
+                var d = new Date(sess.SessionDate);
+                var date = d.toLocaleDateString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric' });
+                return date + ' ' + sess.TimeSlot;
+            } catch (_) {
+                return sess.SessionDate + ' ' + sess.TimeSlot;
+            }
+        }
+        if (sess.SessionDate) return formatDateTime(sess.SessionDate);
+        if (sess.scheduled_at) return formatDateTime(sess.scheduled_at);
+        return 'No date/time';
+    }
+
+    function getLoggedInUserId() {
+        try {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            return user.user_id || user.id || null;
+        } catch (_) {
+            return null;
+        }
     }
 });

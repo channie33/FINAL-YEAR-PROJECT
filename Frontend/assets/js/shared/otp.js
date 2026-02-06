@@ -60,9 +60,26 @@ async function verifyOTP() {
 
         if (response.ok) {//clears the pending user data and redirects to home page on success
             alert('Email verified successfully!');
+            try {
+                const userRes = await fetch(`/api/user?user_id=${encodeURIComponent(userId)}&user_type=${encodeURIComponent(userType)}`);
+                const userData = await userRes.json();
+                if (userRes.ok && userData.status === 'success') {
+                    localStorage.setItem('user', JSON.stringify(userData.user));
+                }
+            } catch (_) {
+                // If user fetch fails, keep going; user can re-login
+            }
+
             localStorage.removeItem('pending_user_id');
             localStorage.removeItem('pending_user_type');
-            window.location.href = '/assets/pages/student/home.html';
+
+            if (userType === 'professional') {
+                window.location.href = '/assets/pages/professional/home.html';
+            } else if (userType === 'admin') {
+                window.location.href = '/assets/pages/admin/users.html';
+            } else {
+                window.location.href = '/assets/pages/student/home.html';
+            }
         } else {
             alert('Invalid or expired OTP: ' + data.message);
             otpInputs.forEach(input => input.value = '');

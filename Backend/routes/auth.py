@@ -337,3 +337,75 @@ def handle_resend_otp(request_handler, data):
     finally:
         cursor.close()
         connection.close()
+
+def handle_get_user(request_handler, user_id, user_type):
+    """Fetch user details after OTP verification"""
+    if not user_id or not user_type:
+        request_handler._set_headers(400, 'application/json')
+        response = json.dumps({"status": "error", "message": "User ID and type required"})
+        request_handler.wfile.write(response.encode())
+        return
+
+    connection = get_db_connection()
+    if not connection:
+        request_handler._set_headers(500, 'application/json')
+        response = json.dumps({"status": "error", "message": "Database connection failed"})
+        request_handler.wfile.write(response.encode())
+        return
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        if user_type == 'student':
+            cursor.execute("""
+                SELECT StudentID as id, FullName, Email, 'student' as user_type
+                FROM Students
+                WHERE StudentID = %s
+            """, (user_id,))
+        elif user_type == 'professional':
+            cursor.execute("""
+                SELECT ProfessionalID as id, FullName, Email, 'professional' as user_type, VerificationStatus
+                FROM MentalHealthProfessionals
+                WHERE ProfessionalID = %s
+            """, (user_id,))
+        elif user_type == 'admin':
+            cursor.execute("""
+                SELECT AdminID as id, Email, 'admin' as user_type
+                FROM Admins
+                WHERE AdminID = %s
+            """, (user_id,))
+        else:
+            request_handler._set_headers(400, 'application/json')
+            response = json.dumps({"status": "error", "message": "Invalid user type"})
+            request_handler.wfile.write(response.encode())
+            return
+
+        user = cursor.fetchone()
+
+        if not user:
+            request_handler._set_headers(404, 'application/json')
+            response = json.dumps({"status": "error", "message": "User not found"})
+            request_handler.wfile.write(response.encode())
+            return
+
+        user_data = {
+            "user_id": user['id'],
+            "email": user['Email'],
+            "user_type": user['user_type']
+        }
+
+        if 'FullName' in user and user['FullName']:
+            name_parts = user['FullName'].split(' ', 1)
+            user_data['first_name'] = name_parts[0]
+            user_data['last_name'] = name_parts[1] if len(name_parts) > 1 else ''
+
+        request_handler._set_headers(200, 'application/json')
+        response = json.dumps({"status": "success", "user": user_data})
+        request_handler.wfile.write(response.encode())
+    except Exception as e:
+        request_handler._set_headers(500, 'application/json')
+        response = json.dumps({"status": "error", "message": str(e)})
+        request_handler.wfile.write(response.encode())
+    finally:
+        cursor.close()
+        connection.close()

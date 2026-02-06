@@ -39,38 +39,34 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Fetch 
     async function fetchResults() {
         try {
-            var res = await fetch('/api/users/professionals', { credentials: 'include' });
+            var res = await fetch('/api/professionals');
             if (res.ok) {
                 var data = await res.json();
-                if (data.professionals && data.professionals.length > 0) {
-                    return data.professionals.map(function (p) {
+                if (data.status === 'success' && data.data && data.data.length > 0) {
+                    return data.data.map(function (p) {
                         return {
-                            id:       p.id,
-                            name:     (p.first_name + ' ' + p.last_name).trim(),
-                            email:    p.email || '',
-                            category: p.category || 'General Counseling'
+                            id:       p.ProfessionalID,
+                            name:     p.FullName,
+                            email:    p.Email || '',
+                            category: p.Category || 'General Counseling'
                         };
                     });
                 }
             }
-            return demo();
+            return [];
         } catch (_) {
-            return demo();
+            return [];
         }
-    }
-
-    // Demo data
-    function demo() {
-        return [
-            { id: 1, name: 'Dr. Sarah Mitchell',  email: 'sarah.mitchell@betterspace.com',  category: 'Anxiety & Stress' },
-            { id: 2, name: 'Dr. James Carter',    email: 'james.carter@betterspace.com',    category: 'Depression' },
-            { id: 3, name: 'Dr. Amina Okafor',    email: 'amina.okafor@betterspace.com',    category: 'Trauma & PTSD' }
-        ];
     }
 
     //Render
     function render(list) {
         listEl.innerHTML = '';
+
+        if (!list || list.length === 0) {
+            listEl.innerHTML = '<p style="padding: 20px; text-align: center; color: #666;">No professionals found</p>';
+            return;
+        }
 
         list.forEach(function (item, idx) {
             // ── result card ──

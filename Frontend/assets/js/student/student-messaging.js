@@ -1,13 +1,12 @@
 // Load student messaging conversations
 document.addEventListener('DOMContentLoaded', function () {
-    const user = JSON.parse(localStorage.getItem('user'));
-    
-    if (!user || !user.id) {
-        console.error('No user logged in');
+    const userId = getLoggedInUserId();
+    if (!userId) {
+        window.location.href = '/assets/pages/shared/login.html';
         return;
     }
 
-    loadStudentMessages(user.id);
+    loadStudentMessages(userId);
 
     // Handle message sending
     const sendButton = document.getElementById('sendBtn') || document.querySelector('.send-btn');
@@ -15,12 +14,20 @@ document.addEventListener('DOMContentLoaded', function () {
         sendButton.addEventListener('click', function () {
             const messageInput = document.getElementById('messageInput') || document.querySelector('textarea');
             if (messageInput && messageInput.value.trim()) {
-                // Message sending logic would go here
                 messageInput.value = '';
             }
         });
     }
 });
+
+function getLoggedInUserId() {
+    try {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        return user.user_id || user.id || null;
+    } catch (_) {
+        return null;
+    }
+}
 
 async function loadStudentMessages(userId) {
     try {
@@ -30,17 +37,18 @@ async function loadStudentMessages(userId) {
         if (response.ok && data.status === 'success') {
             displayStudentMessages(data.data);
         } else {
-            console.error('Error:', data.message || 'Failed to load messages');
-            document.body.innerHTML += '<p style="color: red; margin: 20px;">Error loading messages: ' + (data.message || 'Unknown error') + '</p>';
+            showError(data.message || 'Failed to load messages');
         }
     } catch (error) {
         console.error('Fetch error:', error);
-        document.body.innerHTML += '<p style="color: red; margin: 20px;">Error connecting to server</p>';
+        showError('Error connecting to server');
     }
 }
 
 function displayStudentMessages(conversations) {
-    const messageList = document.querySelector('.message-list') || document.querySelector('.conversations-container') || document.getElementById('msgList');
+    const messageList = document.querySelector('.message-list') ||
+        document.querySelector('.conversations-container') ||
+        document.getElementById('msgList');
 
     if (!messageList) {
         console.warn('Message list container not found');
@@ -68,7 +76,6 @@ function displayStudentMessages(conversations) {
         `;
         messageList.appendChild(msgCard);
 
-        // Add click handler to open conversation
         msgCard.querySelector('.open-chat-btn').addEventListener('click', function () {
             const profId = this.getAttribute('data-prof-id');
             openChat(profId, conversation.FullName);
@@ -77,53 +84,11 @@ function displayStudentMessages(conversations) {
 }
 
 function openChat(professionalId, professionalName) {
-    // This would open a chat interface or navigate to message detail page
     console.log('Opening chat with professional ID:', professionalId);
     alert('Chat with ' + professionalName + ' would open here');
 }
-                }
-            }
-            return results.length > 0 ? results : demo();
-        } catch (_) {
-            return demo();
-        }
-    }
 
-    //  Demo data 
-    function demo() {
-        return [
-            { name: 'JOHN DOE', time: '13:00' },
-            { name: 'JOHN DOE', time: '12/01/2026' },
-            { name: 'JOHN DOE', time: '09/01/2026' }
-        ];
-    }
-
-    // Render 
-    function render(list) {
-        container.innerHTML = '';
-        list.forEach(function (conv) {
-            var card = document.createElement('div');
-            card.className = 'msg-card';
-            card.innerHTML =
-                '<div class="msg-name">'   + conv.name.toUpperCase() + '</div>' +
-                '<div class="msg-dashes">— — — — — — — — — — — — — — — — —</div>' +
-                '<div class="msg-time">'   + formatTime(conv.time)  + '</div>';
-            container.appendChild(card);
-        });
-    }
-
-    //  Time formatter 
-    // Short strings (demo) pass through.  ISO timestamps get
-    // formatted as HH:MM (today) or DD/MM/YYYY (older).
-    function formatTime(raw) {
-        if (!raw || raw.length <= 11) return raw || '';
-        try {
-            var d   = new Date(raw);
-            var now = new Date();
-            if (d.toDateString() === now.toDateString()) {
-                return d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', hour12:false });
-            }
-            return d.toLocaleDateString('en-GB', { day:'2-digit', month:'2-digit', year:'numeric' });
-        } catch (_) { return raw; }
-    }
-});
+function showError(message) {
+    console.error('Error:', message);
+    document.body.innerHTML += '<p style="color: red; margin: 20px;">Error loading messages: ' + message + '</p>';
+}
