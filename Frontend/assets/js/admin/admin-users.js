@@ -7,6 +7,12 @@ if (sessionStorage.getItem("betterspace_admin") !== "true") {
 document.addEventListener('DOMContentLoaded', function () {
 
     loadAllUsers();
+    loadAdminMessages();
+
+    const replyForm = document.getElementById('adminReplyForm');
+    if (replyForm) {
+        replyForm.addEventListener('submit', handleAdminReplySubmit);
+    }
 
     // Logout button
     document.querySelector('.sidebar-item.logout').addEventListener('click', function (e) {
@@ -16,6 +22,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
 });
+
+const ADMIN_USERNAME = 'admin';
 
 async function loadAllUsers() {
     try {
@@ -65,4 +73,119 @@ function displayUsers(users) {
             }
         });
     });
+}
+
+async function loadAdminMessages() {
+    try {
+        const response = await fetch(`/api/admin/messages?admin_username=${encodeURIComponent(ADMIN_USERNAME)}`);
+        const data = await response.json();
+
+        if (response.ok && data.status === 'success') {
+            displayAdminMessages(data.data || []);
+        } else {
+            displayAdminMessages([]);
+        }
+    } catch (error) {
+        console.error('Fetch error:', error);
+        displayAdminMessages([]);
+    }
+}
+
+function displayAdminMessages(messages) {
+    const container = document.getElementById('adminMessagesList');
+    if (!container) {
+        return;
+    }
+
+    if (!messages || messages.length === 0) {
+        container.innerHTML = '<p style="color: #666; text-align: center;">No messages yet</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    messages.forEach(message => {
+        const card = document.createElement('div');
+        card.className = 'admin-message-card';
+        const senderLabel = message.sender_label || message.Sender || 'Unknown';
+        const sentAt = message.SentAt ? new Date(message.SentAt).toLocaleString() : '';
+        const replyTarget = message.StudentID ? 'student' : (message.ProfessionalID ? 'professional' : '');
+        const replyTargetId = message.StudentID || message.ProfessionalID || '';
+        card.innerHTML = `
+            <div class="admin-message-meta">
+                <span>${senderLabel}</span>
+                <span>${sentAt}</span>
+            </div>
+            <div class="admin-message-text">${message.MessageText || ''}</div>
+            ${replyTarget ? '<div class="admin-message-actions"><button class="admin-reply-btn" type="button">Reply</button></div>' : ''}
+        `;
+        container.appendChild(card);
+
+        const replyBtn = card.querySelector('.admin-reply-btn');
+        if (replyBtn) {
+            replyBtn.addEventListener('click', function () {
+                prefillAdminReply(replyTarget, replyTargetId);
+            });
+        }
+    });
+}
+
+function prefillAdminReply(targetType, targetId) {
+    const typeSelect = document.getElementById('adminReplyTargetType');
+    const idInput = document.getElementById('adminReplyTargetId');
+    const messageInput = document.getElementById('adminReplyMessage');
+
+    if (typeSelect && targetType) {
+        typeSelect.value = targetType;
+    }
+    if (idInput && targetId) {
+        idInput.value = targetId;
+    }
+    if (messageInput) {
+        messageInput.focus();
+    }
+}
+
+async function handleAdminReplySubmit(event) {
+    event.preventDefault();
+
+    const typeSelect = document.getElementById('adminReplyTargetType');
+    const idInput = document.getElementById('adminReplyTargetId');
+    const messageInput = document.getElementById('adminReplyMessage');
+
+    if (!typeSelect || !idInput || !messageInput) {
+        return;
+    }
+
+    const targetType = typeSelect.value;
+    const targetId = idInput.value.trim();
+    const messageText = messageInput.value.trim();
+
+    if (!targetId || !messageText) {
+        alert('Recipient ID and message are required.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                admin_username: ADMIN_USERNAME,
+                target_type: targetType,
+                target_id: targetId,
+                message_text: messageText
+            })
+        });
+        const data = await response.json();
+        if (response.ok && data.status === 'success') {
+            messageInput.value = '';
+            loadAdminMessages();
+            alert('Reply sent.');
+        } else {
+            alert(data.message || 'Failed to send reply.');
+        }
+    } catch (error) {
+        console.error('Send error:', error);
+        alert('Error sending reply.');
+    }
 }

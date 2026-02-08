@@ -274,6 +274,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         if (!selectedSlot) { alert('Please select an available time slot.'); return; }
 
         var payload = {
+            student_id: userId,
             professional_id: profId,
             date: selectedDate.getFullYear() + '-' +
                   String(selectedDate.getMonth()+1).padStart(2,'0') + '-' +

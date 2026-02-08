@@ -3,26 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Better Space – Messages</title>
+    <title>Better Space - Messages</title>
     <link rel="stylesheet" href="/assets/css/professionals/professional-messaging.css">
 </head>
 <body class="messages-page">
 
 <nav class="navbar">
-    <a href="/assets/pages/professional/home.html" class="logo">Better <span>space</span></a>
+    <a href="/assets/pages/professional/home.html" class="logo">
+        <span class="better">Better</span><br>
+         <span class="space">space</span></a>
     <ul class="nav-links">
         <li><a href="/assets/pages/professional/home.html">HOME</a></li>
         <li><a href="/assets/pages/professional/messaging.html" class="active">MESSAGES</a></li>
         <li><a href="/assets/pages/professional/sessions.html">SESSIONS</a></li>
     </ul>
-    <div class="search-bar">
-        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-        <input type="text" placeholder="Search...">
-    </div>
 </nav>
+
+<div class="message-actions">
+    <button class="message-admin-btn" id="messageAdminBtn" type="button">Message Admin</button>
+</div>
 
 <!-- Cards injected by messaging.js -->
 <div class="msg-list" id="msgList"></div>
+
+<div class="chat-modal" id="chatModal" aria-hidden="true">
+    <div class="chat-panel" role="dialog" aria-modal="true" aria-label="Chat">
+        <div class="chat-header">
+            <h3 id="chatTitle">Chat</h3>
+            <button class="chat-close" id="chatClose" type="button">X</button>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input">
+            <textarea id="chatInput" rows="2" placeholder="Type your message..."></textarea>
+            <button id="chatSend" type="button">Send</button>
+        </div>
+    </div>
+</div>
+
+<div class="admin-chat-modal" id="adminChatModal" aria-hidden="true">
+    <div class="admin-chat-panel" role="dialog" aria-modal="true" aria-label="Admin Chat">
+        <div class="admin-chat-header">
+            <h3>Chat with Admin</h3>
+            <button class="admin-chat-close" id="adminChatClose" type="button">X</button>
+        </div>
+        <div class="admin-chat-messages" id="adminChatMessages"></div>
+        <div class="admin-chat-input">
+            <textarea id="adminChatInput" rows="2" placeholder="Type your message..."></textarea>
+            <button id="adminChatSend" type="button">Send</button>
+        </div>
+    </div>
+</div>
 
 <script src="/assets/js/professional/professional-messaging.js"></script>
 </body>

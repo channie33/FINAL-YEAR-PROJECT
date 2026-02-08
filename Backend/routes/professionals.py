@@ -3,12 +3,17 @@ import os
 from config import get_db_connection
 from datetime import datetime
 
+
+def _json_default(value):
+    """Fallback serializer for non-JSON types (e.g., datetime)."""
+    return str(value)
+
 def get_all_professionals(request_handler):
     """Get all verified professionals for search/listing"""
     connection = get_db_connection()
     if not connection:
         request_handler._set_headers(500, 'application/json')
-        request_handler.wfile.write(json.dumps({"status": "error", "message": "Database connection failed"}).encode())
+        request_handler.wfile.write(json.dumps({"status": "error", "message": "Database connection failed"}, default=_json_default).encode())
         return
 
     try:
@@ -29,11 +34,11 @@ def get_all_professionals(request_handler):
         response = json.dumps({
             "status": "success",
             "data": professionals
-        })
+        }, default=_json_default)
         request_handler.wfile.write(response.encode())
     except Exception as e:
         request_handler._set_headers(500, 'application/json')
-        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode())
+        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}, default=_json_default).encode())
     finally:
         cursor.close()
         connection.close()
@@ -43,7 +48,7 @@ def get_professional_profile(request_handler, user_id):
     connection = get_db_connection()
     if not connection:
         request_handler._set_headers(500, 'application/json')
-        request_handler.wfile.write(json.dumps({"status": "error", "message": "Database connection failed"}).encode())
+        request_handler.wfile.write(json.dumps({"status": "error", "message": "Database connection failed"}, default=_json_default).encode())
         return
     
     try:
@@ -66,7 +71,7 @@ def get_professional_profile(request_handler, user_id):
         
         if not professional:
             request_handler._set_headers(404, 'application/json')
-            request_handler.wfile.write(json.dumps({"status": "error", "message": "Professional not found"}).encode())
+            request_handler.wfile.write(json.dumps({"status": "error", "message": "Professional not found"}, default=_json_default).encode())
             return
         
         # Get students assigned to this professional
@@ -113,12 +118,12 @@ def get_professional_profile(request_handler, user_id):
                 "reviews": reviews,
                 "average_rating": round(avg_rating, 2)
             }
-        })
+        }, default=_json_default)
         request_handler.wfile.write(response.encode())
         
     except Exception as e:
         request_handler._set_headers(500, 'application/json')
-        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode())
+        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}, default=_json_default).encode())
     finally:
         cursor.close()
         connection.close()
@@ -129,7 +134,7 @@ def get_professional_messages(request_handler, user_id):
     connection = get_db_connection()
     if not connection:
         request_handler._set_headers(500, 'application/json')
-        request_handler.wfile.write(json.dumps({"error": "Database connection failed"}).encode())
+        request_handler.wfile.write(json.dumps({"error": "Database connection failed"}, default=_json_default).encode())
         return
     
     try:
@@ -154,12 +159,12 @@ def get_professional_messages(request_handler, user_id):
         response = json.dumps({
             "status": "success",
             "data": conversations
-        })
+        }, default=_json_default)
         request_handler.wfile.write(response.encode())
         
     except Exception as e:
         request_handler._set_headers(500, 'application/json')
-        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode())
+        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}, default=_json_default).encode())
     finally:
         cursor.close()
         connection.close()
@@ -170,7 +175,7 @@ def get_professional_sessions(request_handler, user_id):
     connection = get_db_connection()
     if not connection:
         request_handler._set_headers(500, 'application/json')
-        request_handler.wfile.write(json.dumps({"status": "error", "message": "Database connection failed"}).encode())
+        request_handler.wfile.write(json.dumps({"status": "error", "message": "Database connection failed"}, default=_json_default).encode())
         return
     
     try:
@@ -196,12 +201,12 @@ def get_professional_sessions(request_handler, user_id):
         response = json.dumps({
             "status": "success",
             "data": sessions
-        })
+        }, default=_json_default)
         request_handler.wfile.write(response.encode())
         
     except Exception as e:
         request_handler._set_headers(500, 'application/json')
-        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode())
+        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}, default=_json_default).encode())
     finally:
         cursor.close()
         connection.close()
@@ -217,34 +222,50 @@ def save_verification_documents(user_id, category, document_data, filename):
     cursor = connection.cursor(dictionary=True)
     
     try:
-        # To create uploads directory if it doesn't exist
-        upload_dir = "uploads/verification_documents"
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        upload_dir = os.path.join(base_dir, "uploads", "verification_documents")
         os.makedirs(upload_dir, exist_ok=True)
-        
-        # To generate a unique filename
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         file_extension = os.path.splitext(filename)[1]
         new_filename = f"professional_{user_id}_{timestamp}{file_extension}"
         file_path = os.path.join(upload_dir, new_filename)
-        
-        # To save file
+
         with open(file_path, 'wb') as f:
             f.write(document_data)
-        
-        # To update professional record with category
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS VerificationDocuments (
+                DocumentID INT AUTO_INCREMENT PRIMARY KEY,
+                ProfessionalID INT NOT NULL,
+                FilePath VARCHAR(500) NOT NULL,
+                OriginalFileName VARCHAR(255) NOT NULL,
+                UploadedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (ProfessionalID)
+                    REFERENCES MentalHealthProfessionals(ProfessionalID)
+            )
+        """)
+
+        relative_path = os.path.relpath(file_path, base_dir)
+
+        cursor.execute("""
+            INSERT INTO VerificationDocuments (ProfessionalID, FilePath, OriginalFileName)
+            VALUES (%s, %s, %s)
+        """, (user_id, relative_path, filename))
+
         query = """
         UPDATE MentalHealthProfessionals 
-        SET Category = %s
+        SET Category = %s, VerificationStatus = 'Pending'
         WHERE ProfessionalID = %s
         """
         cursor.execute(query, (category, user_id))
         connection.commit()
-        
+
         return {
             "status": "success",
             "message": "Documents submitted successfully. Awaiting verification."
         }
-        
+
     except Exception as e:
         connection.rollback()
         return {"status": "error", "message": str(e)}
@@ -258,7 +279,7 @@ def get_professional_verification_status(request_handler, user_id):
     connection = get_db_connection()
     if not connection:
         request_handler._set_headers(500, 'application/json')
-        response = json.dumps({"status": "error", "message": "Database connection failed"})
+        response = json.dumps({"status": "error", "message": "Database connection failed"}, default=_json_default)
         request_handler.wfile.write(response.encode())
         return
     
@@ -275,7 +296,7 @@ def get_professional_verification_status(request_handler, user_id):
         
         if not professional:
             request_handler._set_headers(404, 'application/json')
-            response = json.dumps({"status": "error", "message": "Professional not found"})
+            response = json.dumps({"status": "error", "message": "Professional not found"}, default=_json_default)
             request_handler.wfile.write(response.encode())
             return
         
@@ -286,12 +307,12 @@ def get_professional_verification_status(request_handler, user_id):
                 "verification_status": professional['VerificationStatus'],
                 "category": professional['Category']
             }
-        })
+        }, default=_json_default)
         request_handler.wfile.write(response.encode())
         
     except Exception as e:
         request_handler._set_headers(500, 'application/json')
-        response = json.dumps({"status": "error", "message": str(e)})
+        response = json.dumps({"status": "error", "message": str(e)}, default=_json_default)
         request_handler.wfile.write(response.encode())
     finally:
         cursor.close()
@@ -309,7 +330,7 @@ def handle_submit_verification(request_handler, post_data, content_type):
         if not boundary_match:
             print("No boundary found in content-type")
             request_handler._set_headers(400, 'application/json')
-            response = json.dumps({"status": "error", "message": "Invalid multipart data - no boundary"})
+            response = json.dumps({"status": "error", "message": "Invalid multipart data - no boundary"}, default=_json_default)
             request_handler.wfile.write(response.encode())
             return
         
@@ -372,14 +393,14 @@ def handle_submit_verification(request_handler, post_data, content_type):
         if not file_data:
             print("No file data found")
             request_handler._set_headers(400, 'application/json')
-            response = json.dumps({"status": "error", "message": "No file uploaded"})
+            response = json.dumps({"status": "error", "message": "No file uploaded"}, default=_json_default)
             request_handler.wfile.write(response.encode())
             return
         
         if not filename:
             print("No filename found")
             request_handler._set_headers(400, 'application/json')
-            response = json.dumps({"status": "error", "message": "No filename provided"})
+            response = json.dumps({"status": "error", "message": "No filename provided"}, default=_json_default)
             request_handler.wfile.write(response.encode())
             return
         
@@ -389,7 +410,7 @@ def handle_submit_verification(request_handler, post_data, content_type):
         if not user_id:
             print("No user_id in form data")
             request_handler._set_headers(400, 'application/json')
-            response = json.dumps({"status": "error", "message": "User ID required"})
+            response = json.dumps({"status": "error", "message": "User ID required"}, default=_json_default)
             request_handler.wfile.write(response.encode())
             return
         
@@ -404,12 +425,12 @@ def handle_submit_verification(request_handler, post_data, content_type):
         else:
             request_handler._set_headers(400, 'application/json')
         
-        request_handler.wfile.write(json.dumps(result).encode())
+        request_handler.wfile.write(json.dumps(result, default=_json_default).encode())
         
     except Exception as e:
         print(f"Exception in handle_submit_verification: {str(e)}")
         import traceback
         traceback.print_exc()
         request_handler._set_headers(500, 'application/json')
-        response = json.dumps({"status": "error", "message": str(e)})
+        response = json.dumps({"status": "error", "message": str(e)}, default=_json_default)
         request_handler.wfile.write(response.encode())

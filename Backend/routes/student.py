@@ -1,6 +1,11 @@
 import json
 from config import get_db_connection
 
+
+def _json_default(value):
+    """Fallback serializer for non-JSON types (e.g., datetime)."""
+    return str(value)
+
 def get_student_profile(request_handler, user_id):
     """Get student profile data"""
     connection = get_db_connection()
@@ -62,12 +67,12 @@ def get_student_profile(request_handler, user_id):
                 "professionals": professionals,
                 "reviews": reviews
             }
-        })
+        }, default=_json_default)
         request_handler.wfile.write(response.encode())
         
     except Exception as e:
         request_handler._set_headers(500, 'application/json')
-        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode())
+        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}, default=_json_default).encode())
     finally:
         cursor.close()
         connection.close()
@@ -103,12 +108,12 @@ def get_student_messages(request_handler, user_id):
         response = json.dumps({
             "status": "success",
             "data": conversations
-        })
+        }, default=_json_default)
         request_handler.wfile.write(response.encode())
         
     except Exception as e:
         request_handler._set_headers(500, 'application/json')
-        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode())
+        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}, default=_json_default).encode())
     finally:
         cursor.close()
         connection.close()
@@ -146,10 +151,58 @@ def get_student_sessions(request_handler, user_id):
         response = json.dumps({
             "status": "success",
             "data": sessions
-        })
+        }, default=_json_default)
         request_handler.wfile.write(response.encode())
         
     except Exception as e:
+        request_handler._set_headers(500, 'application/json')
+        request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}, default=_json_default).encode())
+    finally:
+        cursor.close()
+        connection.close()
+
+
+def add_student_review(request_handler, data):
+    student_id = data.get('student_id') or data.get('user_id')
+    professional_id = data.get('professional_id')
+    rating = data.get('rating')
+    feedback_text = data.get('feedback_text', '')
+
+    if not student_id or not professional_id or rating is None:
+        request_handler._set_headers(400, 'application/json')
+        request_handler.wfile.write(json.dumps({"status": "error", "message": "Missing required fields"}).encode())
+        return
+
+    try:
+        rating_value = int(rating)
+    except (TypeError, ValueError):
+        request_handler._set_headers(400, 'application/json')
+        request_handler.wfile.write(json.dumps({"status": "error", "message": "Invalid rating"}).encode())
+        return
+
+    if rating_value < 1 or rating_value > 5:
+        request_handler._set_headers(400, 'application/json')
+        request_handler.wfile.write(json.dumps({"status": "error", "message": "Rating must be between 1 and 5"}).encode())
+        return
+
+    connection = get_db_connection()
+    if not connection:
+        request_handler._set_headers(500, 'application/json')
+        request_handler.wfile.write(json.dumps({"status": "error", "message": "Database connection failed"}).encode())
+        return
+
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""
+            INSERT INTO FeedbackRatings (StudentID, ProfessionalID, Rating, FeedbackText)
+            VALUES (%s, %s, %s, %s)
+        """, (student_id, professional_id, rating_value, feedback_text))
+        connection.commit()
+
+        request_handler._set_headers(200, 'application/json')
+        request_handler.wfile.write(json.dumps({"status": "success"}).encode())
+    except Exception as e:
+        connection.rollback()
         request_handler._set_headers(500, 'application/json')
         request_handler.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode())
     finally:

@@ -10,42 +10,53 @@ body {
     min-height: 100vh;
 }
 
-.header {
-    background-color: #e8e6d5;
-    padding: 20px 40px;
-    display:grid ;
-    grid-template-columns: 1fr 1fr 1fr;
+.navbar {
+    background: #e8e6d5;
+    padding: 16px 40px;
+    display: flex;
     align-items: center;
-    color: #1a4d3e;
+    justify-content: space-between;
+    border-bottom: none;
 }
 
 .logo {
-    font-size: 28px;
-    letter-spacing: -1px;
+    color: #1a4d3e;
+    font-size: 26px;
+    font-weight: normal;
+    text-decoration: none;
+    line-height: 1.15;
 }
 
-.logo .better {
-    display: inline;
-    font-weight: 400;
+.nav-links {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.nav-links a {
+    color: #1a4d3e;
+    text-decoration: none;
+    font-family: 'Georgia', serif;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    padding: 8px 24px;
+    border: 2px solid transparent;
+    border-radius: 22px;
+    transition: background-color 0.2s;
+}
+.nav-links a:hover {
+    background-color: rgba(26,76,57,0.1);
+}
+.nav-links a.active {
+    border-color: #1a4d3e;
 }
 
-.logo .space {
-    display: inline;
-    font-weight: 400;
-    margin-left: 30px;
-}
-
-.page-title {
-    font-size: 28px;
-    font-weight: 400;
-    letter-spacing: 1px;
-}
 
 .container {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: calc(100vh - 100px);
+    min-height: calc(100vh - 80px);
     padding: 40px 20px;
 }
 
@@ -204,16 +215,18 @@ body {
 
 /* To make it responsive */
 @media (max-width: 768px) {
-    .header {
+    .navbar {
         padding: 15px 20px;
         flex-direction: column;
         gap: 10px;
         text-align: center;
     }
 
-    .page-title {
-        font-size: 22px;
+    .nav-links {
+        flex-wrap: wrap;
+        justify-content: center;
     }
+
 
     .form-container {
         padding: 40px 30px;

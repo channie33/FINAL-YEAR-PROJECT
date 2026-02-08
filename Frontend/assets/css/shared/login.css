@@ -11,7 +11,7 @@ body {
 }
 
 .header {
-    background: linear-gradient(135deg, #1a4d3e 0%, #2d6b5a 100%);
+    background: #1a4d3e;
     padding: 20px 40px;
     display: grid ;
     grid-template-columns: 1fr 1fr 1fr;
@@ -95,15 +95,21 @@ body {
 .next-btn {
     position: absolute;
     right: 30px;
-    bottom: 5px;
+    bottom: 18px;
     background-color: #ffffff;
     border: 2px solid #1a4d3e;
-    border-radius: 30%;
-    width: 70px;
-    height: 70px;
-    display: flex;
+    border-radius: 26px;
+    padding: 10px 24px;
+    min-width: 90px;
+    min-height: 44px;
+    display: inline-flex;
     justify-content: center;
     align-items: center;
+    font-family: 'Georgia', serif;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: #1a4d3e;
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
@@ -119,11 +125,6 @@ body {
     transform: translateY(-1px);
 }
 
-.next-btn .arrow {
-    font-size: 32px;
-    font-weight: bold;
-    color: #1a4d3e;
-}
 
 /* To make it responsive */
 @media (max-width: 768px) {
@@ -139,8 +140,8 @@ body {
     }
 
     .next-btn {
-        width: 60px;
-        height: 60px;
+        min-width: 80px;
+        min-height: 40px;
         right: 30px;
         bottom: 30px;
     }

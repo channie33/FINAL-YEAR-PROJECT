@@ -23,8 +23,41 @@
     </div>
 </nav>
 
+<div class="message-actions">
+    <button class="message-professional-btn" id="messageProfessionalBtn" type="button">Message Professional</button>
+    <button class="message-admin-btn" id="messageAdminBtn" type="button">Message Admin</button>
+</div>
+
 <!-- Cards injected by messaging.js -->
 <div class="msg-list" id="msgList"></div>
+
+<div class="chat-modal" id="chatModal" aria-hidden="true">
+    <div class="chat-panel" role="dialog" aria-modal="true" aria-label="Chat">
+        <div class="chat-header">
+            <h3 id="chatTitle">Chat</h3>
+            <button class="chat-close" id="chatClose" type="button">X</button>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input">
+            <textarea id="chatInput" rows="2" placeholder="Type your message..."></textarea>
+            <button id="chatSend" type="button">Send</button>
+        </div>
+    </div>
+</div>
+
+<div class="admin-chat-modal" id="adminChatModal" aria-hidden="true">
+    <div class="admin-chat-panel" role="dialog" aria-modal="true" aria-label="Admin Chat">
+        <div class="admin-chat-header">
+            <h3>Chat with Admin</h3>
+            <button class="admin-chat-close" id="adminChatClose" type="button">X</button>
+        </div>
+        <div class="admin-chat-messages" id="adminChatMessages"></div>
+        <div class="admin-chat-input">
+            <textarea id="adminChatInput" rows="2" placeholder="Type your message..."></textarea>
+            <button id="adminChatSend" type="button">Send</button>
+        </div>
+    </div>
+</div>
 
 <script src="/assets/js/student/student-messaging.js"></script>
 </body>

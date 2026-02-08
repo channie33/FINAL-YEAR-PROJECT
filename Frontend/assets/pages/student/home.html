@@ -43,6 +43,28 @@
         <div class="info-card">
             <div class="card-title">REVIEWS LEFT</div>
             <div class="reviews-list"></div>
+            <form class="review-form" id="reviewForm">
+                <div class="review-row">
+                    <label for="reviewProfessional">Professional</label>
+                    <select id="reviewProfessional" required>
+                        <option value="">Select professional</option>
+                    </select>
+                </div>
+                <div class="review-row">
+                    <label for="reviewRating">Rating</label>
+                    <select id="reviewRating" required>
+                        <option value="">Select rating</option>
+                        <option value="5">5</option>
+                        <option value="4">4</option>
+                        <option value="3">3</option>
+                        <option value="2">2</option>
+                        <option value="1">1</option>
+                    </select>
+                </div>
+                <label class="review-label" for="reviewText">Review</label>
+                <textarea id="reviewText" rows="3" placeholder="Share your experience..."></textarea>
+                <button type="submit" class="review-submit">NEXT</button>
+            </form>
         </div>
     </div>
 

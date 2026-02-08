@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Get user info from localStorage
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userId = user.id || user.user_id;
+    // Debug output
+    console.log('[DEBUG] localStorage user:', user);
+    console.log('[DEBUG] userId used for API:', userId);
 
     // Handle search bar navigation
     const searchInput = document.querySelector('.search-bar input');
@@ -18,11 +21,15 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     }
 
+    let availableProfessionals = [];
+
     // Fetch and display student profile
     async function loadStudentProfile() {
         try {
-            const response = await fetch(`/api/student/profile?user_id=${userId}`);
+            const response = await fetch(`/api/student/profile?student_id=${userId}`);
             const data = await response.json();
+            // Debug output
+            console.log('[DEBUG] /api/student/profile response:', data);
 
             if (!response.ok || data.status !== 'success') {
                 throw new Error(data.message || 'Failed to load profile');
@@ -31,6 +38,9 @@ document.addEventListener('DOMContentLoaded', async function () {
             const profile = data.data.profile;
             const professionals = data.data.professionals;
             const reviews = data.data.reviews;
+
+            availableProfessionals = professionals || [];
+            populateReviewProfessionals(availableProfessionals);
 
             // Fill profile card
             const profileEmail = document.getElementById('profileEmail');
@@ -75,6 +85,67 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 
+    function populateReviewProfessionals(professionals) {
+        const select = document.getElementById('reviewProfessional');
+        if (!select) {
+            return;
+        }
+
+        const options = ['<option value="">Select professional</option>'];
+        if (professionals && professionals.length > 0) {
+            professionals.forEach(prof => {
+                options.push(`<option value="${prof.ProfessionalID}">${prof.FullName}</option>`);
+            });
+        }
+        select.innerHTML = options.join('');
+    }
+
+    async function submitReview(event) {
+        event.preventDefault();
+
+        const professionalSelect = document.getElementById('reviewProfessional');
+        const ratingSelect = document.getElementById('reviewRating');
+        const reviewText = document.getElementById('reviewText');
+
+        if (!professionalSelect || !ratingSelect || !reviewText) {
+            return;
+        }
+
+        const professionalId = professionalSelect.value;
+        const rating = ratingSelect.value;
+        const feedbackText = reviewText.value.trim();
+
+        if (!professionalId || !rating) {
+            alert('Please select a professional and rating.');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/student/reviews', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    student_id: userId,
+                    professional_id: professionalId,
+                    rating: parseInt(rating, 10),
+                    feedback_text: feedbackText
+                })
+            });
+            const data = await response.json();
+            if (response.ok && data.status === 'success') {
+                reviewText.value = '';
+                ratingSelect.value = '';
+                alert('Review submitted successfully.');
+                loadStudentProfile();
+            } else {
+                alert(data.message || 'Failed to submit review.');
+            }
+        } catch (error) {
+            console.error('Review error:', error);
+            alert('Error submitting review.');
+        }
+    }
+
     // Logout
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
@@ -82,6 +153,11 @@ document.addEventListener('DOMContentLoaded', async function () {
             localStorage.clear();
             window.location.href = '/assets/pages/shared/index.html';
         });
+    }
+
+    const reviewForm = document.getElementById('reviewForm');
+    if (reviewForm) {
+        reviewForm.addEventListener('submit', submitReview);
     }
 
     // Load data on page load

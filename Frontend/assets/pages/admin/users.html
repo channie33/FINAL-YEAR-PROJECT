@@ -23,37 +23,39 @@
 
         <div class="main-content">
 
-            <div class="user-card">
-                <div class="user-info">
-                    <div class="user-name">JOHN DOE</div>
-                    <div class="user-type">STUDENT</div>
+            <section class="admin-messages">
+                <div class="section-header">
+                    <h2>Admin Messages</h2>
+                    <p>Messages sent to admin from students and professionals.</p>
                 </div>
-                <button class="email-button" data-email="john.doe1@example.com">EMAIL</button>
-            </div>
+                <div class="admin-messages-list" id="adminMessagesList"></div>
+                <form class="admin-reply" id="adminReplyForm">
+                    <div class="admin-reply-row">
+                        <label for="adminReplyTargetType">Recipient</label>
+                        <select id="adminReplyTargetType">
+                            <option value="student">Student</option>
+                            <option value="professional">Professional</option>
+                        </select>
+                        <input type="number" id="adminReplyTargetId" placeholder="Recipient ID" />
+                    </div>
+                    <textarea id="adminReplyMessage" rows="3" placeholder="Type your reply..."></textarea>
+                    <button type="submit" id="adminReplySend">Send Reply</button>
+                </form>
+            </section>
 
-            <div class="user-card">
-                <div class="user-info">
-                    <div class="user-name">JOHN DOE</div>
-                    <div class="user-type">MENTAL HEALTH PROFESSIONAL</div>
-                </div>
-                <button class="email-button" data-email="john.doe2@example.com">EMAIL</button>
-            </div>
-
-            <div class="user-card">
-                <div class="user-info">
-                    <div class="user-name">JOHN DOE</div>
-                    <div class="user-type">MENTAL HEALTH PROFESSIONAL</div>
-                </div>
-                <button class="email-button" data-email="john.doe3@example.com">EMAIL</button>
-            </div>
-
-            <div class="user-card">
-                <div class="user-info">
-                    <div class="user-name">JOHN DOE</div>
-                    <div class="user-type">STUDENT</div>
-                </div>
-                <button class="email-button" data-email="john.doe4@example.com">EMAIL</button>
-            </div>
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>User Type</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
 
         </div>
     </div>

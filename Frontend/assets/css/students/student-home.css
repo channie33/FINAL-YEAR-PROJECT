@@ -10,7 +10,7 @@ body {
     min-height: 100vh;
 }
 .navbar {
-    background: linear-gradient(135deg, #1a4d3e 0%, #2d6b5a 100%);
+    background: #1a4d3e;
     padding: 16px 40px;
     display: flex;
     align-items: center;
@@ -153,6 +153,64 @@ body {
     height: 1px;
     background-color: #1a4d3e;
     opacity: 0.3;
+}
+
+.review-form {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.review-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.review-row label,
+.review-label {
+    font-size: 13px;
+    color: #1a4d3e;
+    font-weight: bold;
+    min-width: 90px;
+}
+
+.review-row select,
+.review-form textarea {
+    flex: 1;
+    border: 2px solid #1a4d3e;
+    border-radius: 14px;
+    padding: 8px 10px;
+    font-family: 'Georgia', serif;
+    font-size: 13px;
+    background-color: #ffffff;
+    color: #1a4d3e;
+}
+
+.review-form textarea {
+    resize: none;
+    min-height: 90px;
+}
+
+.review-submit {
+    align-self: flex-end;
+    padding: 8px 18px;
+    border-radius: 18px;
+    border: 2px solid #1a4d3e;
+    background-color: #1a4d3e;
+    color: #f5f4e8;
+    cursor: pointer;
+    font-family: 'Georgia', serif;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.review-submit:hover {
+    background-color: #ffffff;
+    color: #1a4d3e;
 }
 
 .logout-btn {

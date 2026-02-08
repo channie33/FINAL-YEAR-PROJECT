@@ -54,24 +54,41 @@ async function verifyOTP() {
                 user_type: userType,
                 otp_code: otp
             })
-        });//sends the OTP verification request to the backend
-
+        });
         const data = await response.json();
 
-        if (response.ok) {//clears the pending user data and redirects to home page on success
-            alert('Email verified successfully!');
+        if (response.ok) {
+            // Always fetch the full user object after verification
+            let userFetched = false;
             try {
                 const userRes = await fetch(`/api/user?user_id=${encodeURIComponent(userId)}&user_type=${encodeURIComponent(userType)}`);
                 const userData = await userRes.json();
-                if (userRes.ok && userData.status === 'success') {
-                    localStorage.setItem('user', JSON.stringify(userData.user));
+                if (userRes.ok && userData.status === 'success' && userData.user) {
+                    // Normalize user object for students: ensure both user_id and StudentID are present
+                    let userObj = userData.user;
+                    if (userType === 'student') {
+                        // If StudentID exists, set user_id to StudentID for compatibility
+                        if (userObj.StudentID) {
+                            userObj.user_id = userObj.StudentID;
+                        }
+                    }
+                    localStorage.setItem('user', JSON.stringify(userObj));
+                    userFetched = true;
+                } else {
+                    alert('Could not fetch user details after verification. Please log in again.');
+                    window.location.href = '/assets/pages/shared/login.html';
+                    return;
                 }
-            } catch (_) {
-                // If user fetch fails, keep going; user can re-login
+            } catch (err) {
+                alert('Could not fetch user details after verification. Please log in again.');
+                window.location.href = '/assets/pages/shared/login.html';
+                return;
             }
 
             localStorage.removeItem('pending_user_id');
             localStorage.removeItem('pending_user_type');
+
+            alert('Email verified successfully!');
 
             if (userType === 'professional') {
                 window.location.href = '/assets/pages/professional/home.html';
@@ -81,7 +98,7 @@ async function verifyOTP() {
                 window.location.href = '/assets/pages/student/home.html';
             }
         } else {
-            alert('Invalid or expired OTP: ' + data.message);
+            alert('Invalid or expired OTP: ' + (data.message || 'Unknown error'));
             otpInputs.forEach(input => input.value = '');
             otpInputs[0].focus();
         }

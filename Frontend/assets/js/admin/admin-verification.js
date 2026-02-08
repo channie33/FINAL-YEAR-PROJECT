@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 });
 
+
 async function loadVerificationRequests() {
     try {
         const response = await fetch('/api/admin/verifications');
@@ -52,7 +53,7 @@ function displayVerifications(verifications) {
             <td>${verification.Category}</td>
             <td>${verification.submission_date}</td>
             <td>
-                <button class="document-icon" data-prof-id="${verification.ProfessionalID}">📄</button>
+                <button class="document-icon" data-prof-id="${verification.ProfessionalID}" title="View document">📄</button>
             </td>
             <td>
                 <button class="approve-btn" data-prof-id="${verification.ProfessionalID}">Approve</button>
@@ -64,7 +65,8 @@ function displayVerifications(verifications) {
         // Document icon click to view document
         row.querySelector('.document-icon').addEventListener('click', function () {
             const profId = this.getAttribute('data-prof-id');
-            alert('View document functionality for professional ID: ' + profId);
+            const url = `/api/admin/verification-document?professional_id=${encodeURIComponent(profId)}`;
+            window.open(url, '_blank', 'noopener');
         });
 
         // Approve button
@@ -107,3 +109,4 @@ async function verifyProfessional(profId, status) {
         alert('Error updating verification status');
     }
 }
+
