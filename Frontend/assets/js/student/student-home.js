@@ -91,13 +91,40 @@ document.addEventListener('DOMContentLoaded', async function () {
             return;
         }
 
+        // Filter to only include professionals with completed sessions
+        const reviewableProfessionals = professionals.filter(prof => prof.session_count > 0);
+        
         const options = ['<option value="">Select professional</option>'];
-        if (professionals && professionals.length > 0) {
-            professionals.forEach(prof => {
+        if (reviewableProfessionals && reviewableProfessionals.length > 0) {
+            reviewableProfessionals.forEach(prof => {
                 options.push(`<option value="${prof.ProfessionalID}">${prof.FullName}</option>`);
             });
+        } else {
+            options.push('<option disabled>No completed sessions yet</option>');
         }
         select.innerHTML = options.join('');
+        
+        // Disable form if no reviewable professionals
+        const reviewForm = document.getElementById('reviewForm');
+        if (reviewForm && (!reviewableProfessionals || reviewableProfessionals.length === 0)) {
+            const submitBtn = reviewForm.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = '0.5';
+                submitBtn.style.cursor = 'not-allowed';
+            }
+            // Show helpful message
+            const formContainer = reviewForm.parentElement;
+            if (formContainer && !formContainer.querySelector('.review-notice')) {
+                const notice = document.createElement('p');
+                notice.className = 'review-notice';
+                notice.textContent = 'Complete a session with a professional first to leave a review.';
+                notice.style.color = '#ff9800';
+                notice.style.fontSize = '13px';
+                notice.style.marginTop = '10px';
+                formContainer.insertBefore(notice, reviewForm);
+            }
+        }
     }
 
     async function submitReview(event) {

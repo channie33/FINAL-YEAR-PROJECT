@@ -131,21 +131,38 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 
-    //Send message
-    async function sendMessage(userId) {
+    //Send message - initiate conversation by sending a greeting
+    async function sendMessage(professionalId) {
+        // Get current student ID from localStorage
+        var user = JSON.parse(localStorage.getItem('user') || '{}');
+        var studentId = user.user_id || user.id;
+        
+        if (!studentId) {
+            alert('Please log in first');
+            window.location.href = '/assets/pages/shared/login.html';
+            return;
+        }
+        
         try {
             var res = await fetch('/api/messages', {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ to_user_id: userId, content: '' })
+                body: JSON.stringify({
+                    student_id: studentId,
+                    professional_id: professionalId,
+                    sender: 'Student',
+                    message_text: 'Hello, I would like to connect with you.'
+                })
             });
             if (res.ok) {
                 window.location.href = 'messaging.html';
                 return;
             }
-        } catch (_) { /* fall through */ }
-        // Backend offline — just navigate to messages page
+        } catch (err) {
+            console.error('Error sending message:', err);
+        }
+        // If failed or backend offline, still navigate to messages page
         window.location.href = 'messaging.html';
     }
 });

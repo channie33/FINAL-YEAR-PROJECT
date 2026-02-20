@@ -69,6 +69,11 @@ body {
     height: 16px;
     fill: white;
     flex-shrink: 0;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+.search-bar svg:hover {
+    opacity: 0.7;
 }
 .search-bar input {
     background: transparent;
@@ -101,6 +106,7 @@ body {
     cursor: pointer;
     transition: box-shadow 0.2s, transform 0.2s;
 }
+
 .sess-card:hover {
     box-shadow: 0 3px 10px rgba(0,0,0,0.08);
     transform: translateY(-2px);
@@ -115,6 +121,25 @@ body {
     font-weight: bold;
     color: #1a4d3e;
     letter-spacing: 0.3px;
+}
+
+.msg-prof-btn {
+    padding: 8px 20px;
+    background-color: #1a4d3e;
+    color: white;
+    border: 2px solid #1a4d3e;
+    border-radius: 20px;
+    font-family: 'Georgia', serif;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.msg-prof-btn:hover {
+    background-color: white;
+    color: #1a4d3e;
+    transform: scale(1.05);
 }
 
 .book-btn-wrap {

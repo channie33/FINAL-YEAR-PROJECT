@@ -56,30 +56,134 @@ body {
     border-color: #1a4d3e;
 }
 
+.container {
+    padding: 40px 20px;
+}
+
+.sess-list {
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 20px;
+}
+
 .sess-card {
-    background-color: white;
-    border: 3px solid #1a4d3e;
-    border-radius: 32px;
-    padding: 26px 40px;
-    margin-bottom: 18px;
+    background-color: #e8e6d5;
+    border: 2px solid #1a4d3e;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    cursor: pointer;
+    align-items: center;
     transition: box-shadow 0.2s, transform 0.2s;
 }
+
 .sess-card:hover {
-    box-shadow: 0 3px 10px rgba(0,0,0,0.12);
-    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
 }
-.sess-card .sess-name {
-    font-size: 16px;
-    font-weight: bold;
-    color: #000;
+
+.sess-info {
+    flex: 1;
 }
-.sess-card .sess-date {
-    font-size: 16px;
+
+.sess-name {
+    font-size: 18px;
     font-weight: bold;
-    color: #000;
+    color: #1a4d3e;
+    margin-bottom: 6px;
+}
+
+.sess-date {
+    font-size: 14px;
+    color: #666;
     letter-spacing: 0.3px;
+}
+
+.meeting-platforms {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.meeting-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    background-color: white;
+}
+
+.meeting-btn:hover {
+    transform: scale(1.08);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.meeting-btn.google-meet {
+    border-color: #4285f4;
+}
+
+.meeting-btn.google-meet:hover {
+    background-color: #4285f4;
+}
+
+.meeting-btn.microsoft-teams {
+    border-color: #5558af;
+}
+
+.meeting-btn.microsoft-teams:hover {
+    background-color: #5558af;
+}
+
+.meeting-btn.zoom {
+    border-color: #2d8cff;
+}
+
+.meeting-btn.zoom:hover {
+    background-color: #2d8cff;
+}
+
+.meeting-btn svg {
+    width: 24px;
+    height: 24px;
+    transition: fill 0.2s;
+}
+
+.meeting-btn:hover svg {
+    fill: white;
+}
+
+.meeting-btn.google-meet svg {
+    fill: #4285f4;
+}
+
+.meeting-btn.microsoft-teams svg {
+    fill: #5558af;
+}
+
+.meeting-btn.zoom svg {
+    fill: #2d8cff;
+}
+
+.meeting-btn.message-student {
+    border-color: #1a4d3e;
+    background-color: white;
+}
+
+.meeting-btn.message-student:hover {
+    background-color: #1a4d3e;
+}
+
+.meeting-btn.message-student svg {
+    fill: #1a4d3e;
+}
+
+.meeting-btn.message-student:hover svg {
+    fill: white;
 }

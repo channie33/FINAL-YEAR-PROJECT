@@ -58,6 +58,25 @@ def book_session(request_handler, data):
 
 	try:
 		cursor = connection.cursor(dictionary=True)
+		
+		# Verify the professional is approved
+		cursor.execute("""
+			SELECT VerificationStatus
+			FROM MentalHealthProfessionals
+			WHERE ProfessionalID = %s
+		""", (professional_id,))
+		professional = cursor.fetchone()
+		
+		if not professional:
+			request_handler._set_headers(404, 'application/json')
+			request_handler.wfile.write(json.dumps({"status": "error", "message": "Professional not found"}).encode())
+			return
+			
+		if professional['VerificationStatus'] != 'Verified':
+			request_handler._set_headers(403, 'application/json')
+			request_handler.wfile.write(json.dumps({"status": "error", "message": "Professional is not verified"}).encode())
+			return
+		
 		cursor.execute("""
 			SELECT ScheduleID, Status
 			FROM ProfessionalSchedule

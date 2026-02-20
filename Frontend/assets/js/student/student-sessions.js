@@ -124,9 +124,14 @@ document.addEventListener('DOMContentLoaded', async function () {
             card.className = 'sess-card';
             var name    = (sess.FullName || sess.name || sess.student || sess.professional_name || 'UNKNOWN').toUpperCase();
             var dateStr = buildSessionDateTime(sess);
+            var profId  = sess.ProfessionalID || sess.professional_id || '';
+            
             card.innerHTML =
+                '<div style="flex: 1;">' +
                 '<div class="sess-name">' + name    + '</div>' +
-                '<div class="sess-date">' + dateStr + '</div>';
+                '<div class="sess-date">' + dateStr + '</div>' +
+                '</div>' +
+                '<button class="msg-prof-btn" onclick="messageProfessional(' + profId + ', \'' + name + '\')">Message</button>';
             listEl.appendChild(card);
         });
     }
@@ -336,3 +341,39 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 });
+
+// Global function to message a professional (called from onclick)
+function messageProfessional(professionalId, professionalName) {
+    var user = JSON.parse(localStorage.getItem('user') || '{}');
+    var studentId = user.user_id || user.id;
+    
+    if (!studentId) {
+        alert('Please log in first');
+        window.location.href = '/assets/pages/shared/login.html';
+        return;
+    }
+    
+    // Send initial message to open conversation
+    fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            student_id: studentId,
+            professional_id: professionalId,
+            sender: 'Student',
+            message_text: 'Hello, I wanted to discuss our session.'
+        })
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.status === 'success') {
+            window.location.href = '/assets/pages/student/messaging.html';
+        } else {
+            window.location.href = '/assets/pages/student/messaging.html';
+        }
+    })
+    .catch(function(error) {
+        console.error('Error sending message:', error);
+        window.location.href = '/assets/pages/student/messaging.html';
+    });
+}

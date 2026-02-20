@@ -13,48 +13,45 @@
         <span class="space">space</span></a>
     <ul class="nav-links">
         <li><a href="/assets/pages/student/home.html">HOME</a></li>
-        <li><a href="/assets/pages/student/messaging.html" class="active">MESSAGES</a></li>
+        <li><a href="/assets/pages/student/messaging.html" class="active">
+            MESSAGES
+            <span class="notification-badge" id="messageNotification" style="display:none;"></span>
+        </a></li>
         <li><a href="/assets/pages/student/sessions.html">SESSIONS</a></li>
         <li><a href="/assets/pages/student/info.html">INFO</a></li>
     </ul>
     <div class="search-bar">
         <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-        <input type="text" placeholder="Search...">
+        <input type="text" placeholder="Search professionals...">
     </div>
 </nav>
 
-<div class="message-actions">
-    <button class="message-professional-btn" id="messageProfessionalBtn" type="button">Message Professional</button>
-    <button class="message-admin-btn" id="messageAdminBtn" type="button">Message Admin</button>
-</div>
+<script src="/assets/js/utils/navbar-search.js"></script>
 
-<!-- Cards injected by messaging.js -->
-<div class="msg-list" id="msgList"></div>
-
-<div class="chat-modal" id="chatModal" aria-hidden="true">
-    <div class="chat-panel" role="dialog" aria-modal="true" aria-label="Chat">
-        <div class="chat-header">
-            <h3 id="chatTitle">Chat</h3>
-            <button class="chat-close" id="chatClose" type="button">X</button>
+<div class="messaging-container">
+    <!-- Left Sidebar: Conversations List -->
+    <div class="conversations-sidebar">
+        <div class="sidebar-header">
+            <h2>Messages</h2>
+            <div class="sidebar-actions">
+                <button class="new-msg-btn" id="messageProfessionalBtn" type="button" title="Message Professional">+</button>
+                <button class="admin-msg-btn" id="messageAdminBtn" type="button" title="Message Admin">Admin</button>
+            </div>
         </div>
-        <div class="chat-messages" id="chatMessages"></div>
-        <div class="chat-input">
+        <div class="conversations-list" id="msgList"></div>
+    </div>
+
+    <!-- Right Panel: Active Chat -->
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            <h3 id="chatTitle">Select a conversation</h3>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <p style="color: #999; text-align: center; padding: 40px;">Select a conversation to start messaging</p>
+        </div>
+        <div class="chat-input-container">
             <textarea id="chatInput" rows="2" placeholder="Type your message..."></textarea>
             <button id="chatSend" type="button">Send</button>
-        </div>
-    </div>
-</div>
-
-<div class="admin-chat-modal" id="adminChatModal" aria-hidden="true">
-    <div class="admin-chat-panel" role="dialog" aria-modal="true" aria-label="Admin Chat">
-        <div class="admin-chat-header">
-            <h3>Chat with Admin</h3>
-            <button class="admin-chat-close" id="adminChatClose" type="button">X</button>
-        </div>
-        <div class="admin-chat-messages" id="adminChatMessages"></div>
-        <div class="admin-chat-input">
-            <textarea id="adminChatInput" rows="2" placeholder="Type your message..."></textarea>
-            <button id="adminChatSend" type="button">Send</button>
         </div>
     </div>
 </div>

@@ -3,6 +3,7 @@ const ADMIN_USERNAME = 'admin';
 let currentUserId = null;
 let currentChatProfessionalId = null;
 let currentChatProfessionalName = '';
+let isAdminChat = false;
 
 document.addEventListener('DOMContentLoaded', function () {
     const userId = getLoggedInUserId();
@@ -29,33 +30,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    const adminCloseBtn = document.getElementById('adminChatClose');
-    if (adminCloseBtn) {
-        adminCloseBtn.addEventListener('click', closeAdminChat);
-    }
-
-    const adminSendBtn = document.getElementById('adminChatSend');
-    if (adminSendBtn) {
-        adminSendBtn.addEventListener('click', sendAdminMessage);
-    }
-
-    const chatCloseBtn = document.getElementById('chatClose');
-    if (chatCloseBtn) {
-        chatCloseBtn.addEventListener('click', closeChat);
-    }
-
     const chatSendBtn = document.getElementById('chatSend');
     if (chatSendBtn) {
         chatSendBtn.addEventListener('click', sendChatMessage);
     }
 
-    // Handle message sending
-    const sendButton = document.getElementById('sendBtn') || document.querySelector('.send-btn');
-    if (sendButton) {
-        sendButton.addEventListener('click', function () {
-            const messageInput = document.getElementById('messageInput') || document.querySelector('textarea');
-            if (messageInput && messageInput.value.trim()) {
-                messageInput.value = '';
+    // Enter key to send
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
             }
         });
     }
@@ -87,9 +73,7 @@ async function loadStudentMessages(userId) {
 }
 
 function displayStudentMessages(conversations) {
-    const messageList = document.querySelector('.message-list') ||
-        document.querySelector('.conversations-container') ||
-        document.getElementById('msgList');
+    const messageList = document.querySelector('.conversations-list') || document.getElementById('msgList');
 
     if (!messageList) {
         console.warn('Message list container not found');
@@ -100,57 +84,51 @@ function displayStudentMessages(conversations) {
 
     if (conversations && conversations.length > 0) {
         conversations.forEach(conversation => {
-        const msgCard = document.createElement('div');
-        msgCard.className = 'msg-card';
-        msgCard.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h4 style="margin: 0 0 5px 0;">${conversation.FullName}</h4>
-                    <p style="margin: 0; color: #666; font-size: 0.9em;">Last message: ${conversation.last_message_time || 'No messages'}</p>
-                </div>
-                <button class="open-chat-btn" data-prof-id="${conversation.ProfessionalID}" style="padding: 5px 15px; background-color: #1a4d3e; color: #f5f4e8; border: none; border-radius: 5px; cursor: pointer;">Open Chat</button>
-            </div>
-        `;
-        messageList.appendChild(msgCard);
-
-        msgCard.querySelector('.open-chat-btn').addEventListener('click', function () {
-            const profId = this.getAttribute('data-prof-id');
-            openChat(profId, conversation.FullName);
-        });
+            const msgCard = document.createElement('div');
+            msgCard.className = 'msg-card';
+            msgCard.innerHTML = `
+                <div class="msg-name">${conversation.FullName}</div>
+                <div class="msg-time">${new Date(conversation.last_message_time).toLocaleDateString()}</div>
+            `;
+            
+            msgCard.addEventListener('click', function () {
+                // Remove active class from all cards
+                document.querySelectorAll('.msg-card').forEach(c => c.classList.remove('active'));
+                // Add active to clicked card
+                msgCard.classList.add('active');
+                openChat(conversation.ProfessionalID, conversation.FullName);
+            });
+            
+            messageList.appendChild(msgCard);
         });
     }
 
     if (!conversations || conversations.length === 0) {
-        messageList.innerHTML = '<p style="padding: 20px; text-align: center; color: #666;">No messages yet</p>';
+        messageList.innerHTML = '<p style=\"padding: 20px; text-align: center; color: #666;\">No messages yet</p>';
     }
 }
 
 function openChat(professionalId, professionalName) {
+    isAdminChat = false;
     currentChatProfessionalId = professionalId;
     currentChatProfessionalName = professionalName || 'Professional';
-    const modal = document.getElementById('chatModal');
     const title = document.getElementById('chatTitle');
-    if (!modal) {
-        return;
-    }
     if (title) {
         title.textContent = 'Chat with ' + currentChatProfessionalName;
     }
-    modal.classList.add('open');
-    modal.setAttribute('aria-hidden', 'false');
     loadChatMessages();
 }
 
 function closeChat() {
-    const modal = document.getElementById('chatModal');
-    if (!modal) {
-        return;
-    }
-    modal.classList.remove('open');
-    modal.setAttribute('aria-hidden', 'true');
+    // Not needed in full-page layout
 }
 
 async function loadChatMessages() {
+    if (isAdminChat) {
+        loadAdminMessages();
+        return;
+    }
+    
     if (!currentUserId || !currentChatProfessionalId) {
         return;
     }
@@ -192,11 +170,20 @@ function renderChatMessages(messages) {
 
 async function sendChatMessage() {
     const input = document.getElementById('chatInput');
-    if (!input || !currentUserId || !currentChatProfessionalId) {
+    if (!input || !currentUserId) {
         return;
     }
     const messageText = input.value.trim();
     if (!messageText) {
+        return;
+    }
+
+    if (isAdminChat) {
+        await sendAdminMessage(messageText);
+        return;
+    }
+
+    if (!currentChatProfessionalId) {
         return;
     }
 
@@ -226,22 +213,22 @@ async function sendChatMessage() {
 }
 
 function openAdminChat() {
-    const modal = document.getElementById('adminChatModal');
-    if (!modal) {
-        return;
+    isAdminChat = true;
+    currentChatProfessionalId = null;
+    currentChatProfessionalName = '';
+    
+    // Remove active from all conversation cards
+    document.querySelectorAll('.msg-card').forEach(c => c.classList.remove('active'));
+    
+    const title = document.getElementById('chatTitle');
+    if (title) {
+        title.textContent = 'Chat with Admin';
     }
-    modal.classList.add('open');
-    modal.setAttribute('aria-hidden', 'false');
     loadAdminMessages();
 }
 
 function closeAdminChat() {
-    const modal = document.getElementById('adminChatModal');
-    if (!modal) {
-        return;
-    }
-    modal.classList.remove('open');
-    modal.setAttribute('aria-hidden', 'true');
+    // Not needed in full-page layout
 }
 
 async function loadAdminMessages() {
@@ -253,44 +240,45 @@ async function loadAdminMessages() {
         const response = await fetch(`/api/student/admin-messages?user_id=${currentUserId}&admin_username=${encodeURIComponent(ADMIN_USERNAME)}`);
         const data = await response.json();
         if (response.ok && data.status === 'success') {
-            renderAdminMessages(data.data.messages || []);
+            renderChatMessages(data.data.messages || [], true);
         } else {
-            renderAdminMessages([]);
+            renderChatMessages([], true);
         }
     } catch (error) {
         console.error('Admin fetch error:', error);
-        renderAdminMessages([]);
+        renderChatMessages([], true);
     }
 }
 
-function renderAdminMessages(messages) {
-    const container = document.getElementById('adminChatMessages');
+function renderChatMessages(messages, isAdmin = false) {
+    const container = document.getElementById('chatMessages');
     if (!container) {
         return;
     }
 
     if (!messages || messages.length === 0) {
-        container.innerHTML = '<p style="color: #666; text-align: center;">No messages yet</p>';
+        container.innerHTML = '<p style="color: #999; text-align: center; padding: 40px;">No messages yet</p>';
         return;
     }
 
     container.innerHTML = '';
     messages.forEach(message => {
         const item = document.createElement('div');
-        item.className = 'admin-chat-message' + (message.Sender === 'Student' ? ' self' : '');
+        const isSelf = message.Sender === 'Student';
+        item.className = 'chat-message' + (isSelf ? ' self' : '');
         item.textContent = message.MessageText;
         container.appendChild(item);
     });
     container.scrollTop = container.scrollHeight;
 }
 
-async function sendAdminMessage() {
-    const input = document.getElementById('adminChatInput');
-    if (!input || !currentUserId) {
-        return;
-    }
-    const messageText = input.value.trim();
-    if (!messageText) {
+function renderAdminMessages(messages) {
+    // Reuse the main render function
+    renderChatMessages(messages, true);
+}
+
+async function sendAdminMessage(messageText) {
+    if (!currentUserId) {
         return;
     }
 
@@ -306,9 +294,7 @@ async function sendAdminMessage() {
         });
         const data = await response.json();
         if (response.ok && data.status === 'success') {
-            input.value = '';
             loadAdminMessages();
-            loadStudentMessages(currentUserId);
         } else {
             showError(data.message || 'Failed to send message');
         }
@@ -320,5 +306,5 @@ async function sendAdminMessage() {
 
 function showError(message) {
     console.error('Error:', message);
-    document.body.innerHTML += '<p style="color: red; margin: 20px;">Error loading messages: ' + message + '</p>';
+    alert('Error: ' + message);
 }

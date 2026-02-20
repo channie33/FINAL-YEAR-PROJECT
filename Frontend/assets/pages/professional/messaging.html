@@ -14,43 +14,43 @@
          <span class="space">space</span></a>
     <ul class="nav-links">
         <li><a href="/assets/pages/professional/home.html">HOME</a></li>
-        <li><a href="/assets/pages/professional/messaging.html" class="active">MESSAGES</a></li>
+        <li><a href="/assets/pages/professional/messaging.html" class="active">
+            MESSAGES
+            <span class="notification-badge" id="messageNotification" style="display:none;"></span>
+        </a></li>
         <li><a href="/assets/pages/professional/sessions.html">SESSIONS</a></li>
     </ul>
 </nav>
 
-<div class="message-actions">
-    <button class="message-admin-btn" id="messageAdminBtn" type="button">Message Admin</button>
-</div>
-
-<!-- Cards injected by messaging.js -->
-<div class="msg-list" id="msgList"></div>
-
-<div class="chat-modal" id="chatModal" aria-hidden="true">
-    <div class="chat-panel" role="dialog" aria-modal="true" aria-label="Chat">
-        <div class="chat-header">
-            <h3 id="chatTitle">Chat</h3>
-            <button class="chat-close" id="chatClose" type="button">X</button>
+<div class="messaging-container">
+    <!-- Left Sidebar: Conversations List -->
+    <div class="conversations-sidebar">
+        <div class="sidebar-header">
+            <h2>Messages</h2>
+            <div class="sidebar-actions">
+                <button class="admin-msg-btn" id="messageAdminBtn" type="button" title="Message Admin">Admin</button>
+            </div>
         </div>
-        <div class="chat-messages" id="chatMessages"></div>
-        <div class="chat-input">
+        <div class="conversations-list" id="conversationsList"></div>
+    </div>
+
+    <!-- Right Panel: Active Chat -->
+    <div class="chat-panel" id="chatPanel" style="display:none;">
+        <div class="chat-header">
+            <h3 id="chatHeader">Select a conversation</h3>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <p style="color: #999; text-align: center; padding: 40px;">Select a conversation to start messaging</p>
+        </div>
+        <div class="chat-input-container">
             <textarea id="chatInput" rows="2" placeholder="Type your message..."></textarea>
             <button id="chatSend" type="button">Send</button>
         </div>
     </div>
-</div>
 
-<div class="admin-chat-modal" id="adminChatModal" aria-hidden="true">
-    <div class="admin-chat-panel" role="dialog" aria-modal="true" aria-label="Admin Chat">
-        <div class="admin-chat-header">
-            <h3>Chat with Admin</h3>
-            <button class="admin-chat-close" id="adminChatClose" type="button">X</button>
-        </div>
-        <div class="admin-chat-messages" id="adminChatMessages"></div>
-        <div class="admin-chat-input">
-            <textarea id="adminChatInput" rows="2" placeholder="Type your message..."></textarea>
-            <button id="adminChatSend" type="button">Send</button>
-        </div>
+    <!-- Empty State (shown when no chat is selected) -->
+    <div class="empty-state" id="emptyState">
+        <p>Select a conversation to start messaging</p>
     </div>
 </div>
 

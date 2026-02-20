@@ -17,31 +17,12 @@
     <div class="container">
         <div class="sidebar">
             <a href="/assets/pages/admin/users.html" class="sidebar-item active">USERS</a>
+            <a href="/assets/pages/admin/messaging.html" class="sidebar-item">MESSAGES</a>
             <a href="/assets/pages/admin/verification.html" class="sidebar-item">VERIFICATION</a>
             <a href="/assets/pages/shared/index.html" class="sidebar-item logout">LOG OUT</a>
         </div>
 
         <div class="main-content">
-
-            <section class="admin-messages">
-                <div class="section-header">
-                    <h2>Admin Messages</h2>
-                    <p>Messages sent to admin from students and professionals.</p>
-                </div>
-                <div class="admin-messages-list" id="adminMessagesList"></div>
-                <form class="admin-reply" id="adminReplyForm">
-                    <div class="admin-reply-row">
-                        <label for="adminReplyTargetType">Recipient</label>
-                        <select id="adminReplyTargetType">
-                            <option value="student">Student</option>
-                            <option value="professional">Professional</option>
-                        </select>
-                        <input type="number" id="adminReplyTargetId" placeholder="Recipient ID" />
-                    </div>
-                    <textarea id="adminReplyMessage" rows="3" placeholder="Type your reply..."></textarea>
-                    <button type="submit" id="adminReplySend">Send Reply</button>
-                </form>
-            </section>
 
             <table class="users-table">
                 <thead>

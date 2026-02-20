@@ -29,16 +29,16 @@ def get_student_profile(request_handler, user_id):
             request_handler.wfile.write(json.dumps({"status": "error", "message": "Student not found"}).encode())
             return
         
-        # Get professionals the student has sessions with
+        # Get all verified professionals with session count
         cursor.execute("""
-            SELECT DISTINCT 
+            SELECT 
                 mhp.ProfessionalID,
                 mhp.FullName,
                 mhp.Category,
                 COUNT(sa.AppointmentID) as session_count
             FROM MentalHealthProfessionals mhp
-            LEFT JOIN SessionAppointments sa ON mhp.ProfessionalID = sa.ProfessionalID
-            WHERE sa.StudentID = %s
+            LEFT JOIN SessionAppointments sa ON mhp.ProfessionalID = sa.ProfessionalID AND sa.StudentID = %s
+            WHERE mhp.VerificationStatus = 'Verified'
             GROUP BY mhp.ProfessionalID
             ORDER BY mhp.FullName
         """, (user_id,))
@@ -192,7 +192,22 @@ def add_student_review(request_handler, data):
         return
 
     try:
-        cursor = connection.cursor()
+        cursor = connection.cursor(dictionary=True)
+        
+        # Verify that the student has had at least one session with this professional
+        cursor.execute("""
+            SELECT COUNT(AppointmentID) as session_count
+            FROM SessionAppointments
+            WHERE StudentID = %s AND ProfessionalID = %s
+        """, (student_id, professional_id))
+        
+        result = cursor.fetchone()
+        if not result or result['session_count'] == 0:
+            request_handler._set_headers(403, 'application/json')
+            request_handler.wfile.write(json.dumps({"status": "error", "message": "You can only review professionals you have had sessions with"}).encode())
+            return
+        
+        # Proceed with insertion
         cursor.execute("""
             INSERT INTO FeedbackRatings (StudentID, ProfessionalID, Rating, FeedbackText)
             VALUES (%s, %s, %s, %s)

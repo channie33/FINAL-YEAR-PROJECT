@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Messages</title>
+    <link rel="stylesheet" href="/assets/css/admin/admin.css">
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo"><span class="better">Better </span><br>
+            <span class="space">space</span></div>
+        <div class="header-title"><center>ADMIN PANEL</center></div>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <a href="/assets/pages/admin/users.html" class="sidebar-item">USERS</a>
+            <a href="/assets/pages/admin/messaging.html" class="sidebar-item active">MESSAGES</a>
+            <a href="/assets/pages/admin/verification.html" class="sidebar-item">VERIFICATION</a>
+            <a href="/assets/pages/shared/index.html" class="sidebar-item logout">LOG OUT</a>
+        </div>
+
+        <div class="main-content messaging-layout">
+            <!-- Left Panel: Conversations List -->
+            <div class="conversations-sidebar">
+                <div class="sidebar-header">
+                    <h2>Conversations</h2>
+                </div>
+                <div class="conversations-list" id="conversationsList">
+                    <p style="padding: 20px; text-align: center; color: #666;">Loading conversations...</p>
+                </div>
+            </div>
+
+            <!-- Right Panel: Active Chat -->
+            <div class="chat-panel" id="chatPanel" style="display:none;">
+                <div class="chat-header">
+                    <h3 id="chatHeader">Select a conversation</h3>
+                </div>
+                <div class="chat-messages" id="chatMessages">
+                    <p style="color: #999; text-align: center; padding: 40px;">Select a conversation to start messaging</p>
+                </div>
+                <div class="chat-input-container">
+                    <textarea id="chatInput" rows="2" placeholder="Type your message..."></textarea>
+                    <button id="chatSend" type="button">Send</button>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div class="empty-state" id="emptyState">
+                <p>Select a conversation to start messaging</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/assets/js/admin/admin-messaging.js"></script>
+</body>
+</html>

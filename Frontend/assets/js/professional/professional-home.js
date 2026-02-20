@@ -29,38 +29,43 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (profileCategory) profileCategory.textContent = profile.Category || 'N/A';
             
             // Display students (your students)
+            const studentContainer = document.querySelector('.students-list');
             if (students && students.length > 0) {
-                const studentContainer = document.querySelector('.students-list') || document.querySelector('.student-list');
-                if (studentContainer) {
-                    studentContainer.innerHTML = students.map(student => `
-                        <div class="student-info" style="background-color: #f5f4e8; padding: 10px; border-radius: 5px; margin-bottom: 8px;">
-                            <p style="margin: 0; color: #1a4d3e;"><strong>${student.FullName}</strong> - ${student.session_count || 0} sessions</p>
-                        </div>
-                    `).join('');
-                }
-            }
-            
-            // Display reviews (ratings from students)
-            if (reviews && reviews.length > 0) {
-                const reviewContainer = document.querySelector('.reviews-list') || document.querySelector('.review-list');
-                if (reviewContainer) {
-                    reviewContainer.innerHTML = reviews.map(review => `
-                        <div class="review-info" style="background-color: #e8e6d5; padding: 10px; border-radius: 5px; margin-bottom: 8px;">
-                            <p style="margin: 0 0 5px 0; color: #1a4d3e;"><strong>${review.student_name}</strong> - Rating: ${'⭐'.repeat(review.Rating)}</p>
-                            <p style="margin: 0; color: #666; font-size: 0.9em;">"${review.FeedbackText || 'No feedback text'}"</p>
-                        </div>
-                    `).join('');
-                }
+                studentContainer.innerHTML = students.map(student => `
+                    <div class="student-info">
+                        <p><strong>${student.FullName}</strong></p>
+                        <p style="font-size: 12px; color: #bbb;">Sessions: ${student.session_count || 0}</p>
+                    </div>
+                `).join('');
+            } else {
+                studentContainer.innerHTML = '<p style="text-align: center; color: #aaa; font-size: 14px;">No students yet. Complete sessions to see them here.</p>';
             }
             
             // Display average rating
-            const ratingDisplay = document.querySelector('.average-rating') || document.querySelector('.rating-display');
-            if (ratingDisplay) {
-                ratingDisplay.textContent = `Average Rating: ${'⭐'.repeat(Math.round(avgRating))} (${avgRating}/5)`;
+            const ratingDisplay = document.querySelector('.average-rating');
+            if (ratingDisplay && avgRating > 0) {
+                const stars = '⭐'.repeat(Math.round(avgRating));
+                ratingDisplay.innerHTML = `<strong>Average Rating:</strong> ${stars} (${avgRating}/5)`;
+            } else if (ratingDisplay) {
+                ratingDisplay.innerHTML = '<span style="color: #aaa;">No ratings yet</span>';
+            }
+            
+            // Display reviews (ratings from students)
+            const reviewContainer = document.querySelector('.reviews-list');
+            if (reviews && reviews.length > 0) {
+                reviewContainer.innerHTML = reviews.map(review => `
+                    <div class="review-info">
+                        <p><strong>Anonymous Student</strong> - ${'⭐'.repeat(review.Rating)}</p>
+                        <p>"${review.FeedbackText || 'No feedback provided'}"</p>
+                    </div>
+                `).join('');
+            } else {
+                reviewContainer.innerHTML = '<p style="text-align: center; color: #aaa; font-size: 14px;">No reviews yet. Once students leave reviews, they\'ll appear here.</p>';
             }
         } catch (error) {
             console.error('Error loading profile:', error);
-            document.body.innerHTML += '<p style="color: red; margin: 20px;">Error loading profile: ' + error.message + '</p>';
+            const errorMsg = '<p style="color: #ff6b6b; margin: 20px; text-align: center;">Error loading profile: ' + error.message + '</p>';
+            document.querySelector('.home-right').innerHTML = errorMsg;
         }
     }
 

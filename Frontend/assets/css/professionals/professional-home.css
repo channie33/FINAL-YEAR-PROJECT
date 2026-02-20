@@ -119,6 +119,41 @@ body {
     opacity: 0.4;
 }
 
+.students-list,
+.reviews-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.student-info,
+.review-info {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 14px 16px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border-left: 3px solid #f5f4e8;
+}
+
+.student-info p,
+.review-info p {
+    margin: 0;
+    color: #f5f4e8;
+    font-size: 14px;
+}
+
+.student-info p:first-child,
+.review-info p:first-child {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.review-info p:last-child {
+    font-size: 13px;
+    color: #ddd;
+    margin-top: 8px;
+    font-style: italic;
+}
+
 .logout-btn {
     position: fixed;
     bottom: 26px;
