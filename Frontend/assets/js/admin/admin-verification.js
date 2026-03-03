@@ -47,13 +47,17 @@ function displayVerifications(verifications) {
 
     verifications.forEach(verification => {
         const row = document.createElement('tr');
+        const hasDocument = !!verification.FilePath;
+
         row.innerHTML = `
             <td>${verification.FullName}</td>
             <td>${verification.Email}</td>
             <td>${verification.Category}</td>
             <td>${verification.submission_date}</td>
             <td>
-                <button class="document-icon" data-prof-id="${verification.ProfessionalID}" title="View document">📄</button>
+                ${hasDocument
+                    ? `<button class="document-icon" data-prof-id="${verification.ProfessionalID}" title="View document">📄</button>`
+                    : '<span title="No document uploaded">—</span>'}
             </td>
             <td>
                 <button class="approve-btn" data-prof-id="${verification.ProfessionalID}">Approve</button>
@@ -63,11 +67,14 @@ function displayVerifications(verifications) {
         verificationTable.appendChild(row);
 
         // Document icon click to view document
-        row.querySelector('.document-icon').addEventListener('click', function () {
-            const profId = this.getAttribute('data-prof-id');
-            const url = `/api/admin/verification-document?professional_id=${encodeURIComponent(profId)}`;
-            window.open(url, '_blank', 'noopener');
-        });
+        const documentButton = row.querySelector('.document-icon');
+        if (documentButton) {
+            documentButton.addEventListener('click', function () {
+                const profId = this.getAttribute('data-prof-id');
+                const url = `/api/admin/verification-document?professional_id=${encodeURIComponent(profId)}`;
+                window.open(url, '_blank', 'noopener');
+            });
+        }
 
         // Approve button
         row.querySelector('.approve-btn').addEventListener('click', function () {

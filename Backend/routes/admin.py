@@ -27,11 +27,26 @@ def get_pending_verifications(request_handler):
                 ProfessionalID INT NOT NULL,
                 FilePath VARCHAR(500) NOT NULL,
                 OriginalFileName VARCHAR(255) NOT NULL,
+                FileSize INT,
+                MimeType VARCHAR(100),
+                FileHash VARCHAR(64),
                 UploadedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (ProfessionalID)
                     REFERENCES MentalHealthProfessionals(ProfessionalID)
             )
         """)
+        try:
+            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN FileSize INT")
+        except Exception:
+            pass
+        try:
+            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN MimeType VARCHAR(100)")
+        except Exception:
+            pass
+        try:
+            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN FileHash VARCHAR(64)")
+        except Exception:
+            pass
 
         query = """
         SELECT 
@@ -42,9 +57,9 @@ def get_pending_verifications(request_handler):
             p.VerificationStatus,
             vd.FilePath,
             vd.OriginalFileName,
-            vd.UploadedAt as submission_date
+            COALESCE(vd.UploadedAt, p.CreatedAt) as submission_date
         FROM MentalHealthProfessionals p
-        JOIN (
+        LEFT JOIN (
             SELECT vd1.ProfessionalID, vd1.FilePath, vd1.OriginalFileName, vd1.UploadedAt
             FROM VerificationDocuments vd1
             JOIN (
@@ -57,7 +72,7 @@ def get_pending_verifications(request_handler):
         ) vd
         ON p.ProfessionalID = vd.ProfessionalID
         WHERE p.VerificationStatus = 'Pending'
-        ORDER BY vd.UploadedAt DESC
+        ORDER BY submission_date DESC
         """
         cursor.execute(query)
         professionals = cursor.fetchall() #fetches all professionals with pending verification
@@ -101,14 +116,29 @@ def get_verification_document(request_handler, professional_id):
                 ProfessionalID INT NOT NULL,
                 FilePath VARCHAR(500) NOT NULL,
                 OriginalFileName VARCHAR(255) NOT NULL,
+                FileSize INT,
+                MimeType VARCHAR(100),
+                FileHash VARCHAR(64),
                 UploadedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (ProfessionalID)
                     REFERENCES MentalHealthProfessionals(ProfessionalID)
             )
         """)
+        try:
+            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN FileSize INT")
+        except Exception:
+            pass
+        try:
+            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN MimeType VARCHAR(100)")
+        except Exception:
+            pass
+        try:
+            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN FileHash VARCHAR(64)")
+        except Exception:
+            pass
 
         query = """
-        SELECT FilePath, OriginalFileName
+        SELECT FilePath, OriginalFileName, MimeType
         FROM VerificationDocuments
         WHERE ProfessionalID = %s
         ORDER BY UploadedAt DESC
@@ -133,16 +163,20 @@ def get_verification_document(request_handler, professional_id):
             request_handler.wfile.write(response.encode())
             return
 
-        content_type, _ = mimetypes.guess_type(file_path)
+        content_type = document.get('MimeType')
+        if not content_type:
+            content_type, _ = mimetypes.guess_type(file_path)
         if content_type is None:
             content_type = 'application/octet-stream'
+
+        safe_download_name = os.path.basename(document['OriginalFileName']).replace('"', '')
 
         request_handler.send_response(200)
         request_handler.send_header('Content-type', content_type)
         request_handler.send_header('Access-Control-Allow-Origin', '*')
         request_handler.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         request_handler.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        request_handler.send_header('Content-Disposition', f"inline; filename=\"{document['OriginalFileName']}\"")
+        request_handler.send_header('Content-Disposition', f"inline; filename=\"{safe_download_name}\"")
         request_handler.end_headers()
 
         with open(file_path, 'rb') as f:

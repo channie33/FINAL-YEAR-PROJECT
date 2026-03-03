@@ -53,14 +53,13 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (profContainer) {
                 if (professionals && professionals.length > 0) {
                     profContainer.innerHTML = professionals.map(prof => `
-                        <div class="info-card" style="background-color: #e8e6d5; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
-                            <div class="card-title" style="font-weight: bold; color: #1a4d3e;">${prof.FullName}</div>
-                            <div class="field" style="color: #666; margin: 5px 0;">Category: ${prof.Category || 'N/A'}</div>
-                            <div class="field" style="color: #666; margin: 5px 0;">Sessions: ${prof.session_count || 0}</div>
+                        <div class="professional-info">
+                            <p><strong>${prof.FullName}</strong></p>
+                            <p style="font-size: 12px; color: #bbb;">${prof.Category || 'N/A'}</p>
                         </div>
                     `).join('');
                 } else {
-                    profContainer.innerHTML = '<p style="color: #666; margin-top: 10px;">No professionals yet</p>';
+                    profContainer.innerHTML = '<p style="text-align: center; color: #aaa; font-size: 14px;">No professionals yet. Connect with professionals through messages or sessions to see them here.</p>';
                 }
             }
 

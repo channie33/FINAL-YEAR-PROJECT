@@ -25,11 +25,21 @@ document.getElementById('verificationForm').addEventListener('submit', async fun
         return;
     }
     
-    // Get user data from localStorage
+    // Resolve professional ID: prefer pending registration session to avoid stale logged-in IDs
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    
-    if (!user.user_id) {
-        alert('Session expired. Please log in again.');
+    const pendingUserId = localStorage.getItem('pending_user_id');
+    const pendingUserType = localStorage.getItem('pending_user_type');
+
+    let submissionUserId = null;
+
+    if (pendingUserId && pendingUserType === 'professional') {
+        submissionUserId = pendingUserId;
+    } else if (user.user_id) {
+        submissionUserId = user.user_id;
+    }
+
+    if (!submissionUserId) {
+        alert('Session expired. Please register or log in again.');
         window.location.href = '/assets/pages/shared/login.html';
         return;
     }
@@ -37,7 +47,7 @@ document.getElementById('verificationForm').addEventListener('submit', async fun
     // Create FormData for file upload
     const formData = new FormData();
     formData.append('document', selectedFile);
-    formData.append('user_id', user.user_id);
+    formData.append('user_id', submissionUserId);
     formData.append('specialization', category);
     
     try {

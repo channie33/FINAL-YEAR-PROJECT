@@ -59,76 +59,54 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 
-    //Render
+    //Render - Display professionals as tiles
     function render(list) {
         listEl.innerHTML = '';
 
         if (!list || list.length === 0) {
-            listEl.innerHTML = '<p style="padding: 20px; text-align: center; color: #666;">No professionals found</p>';
+            listEl.innerHTML = '<div class="no-results">No professionals found</div>';
             return;
         }
 
-        list.forEach(function (item, idx) {
-            // ── result card ──
+        list.forEach(function (item) {
+            // Create tile card
             var card = document.createElement('div');
             card.className = 'result-card';
-            card.setAttribute('data-idx', idx);
-            card.innerHTML = '<div class="result-label">' + item.name + '</div>';
-
-            // detail popup (hidden until card is clicked)
-            var popup = document.createElement('div');
-            popup.className = 'detail-popup';
-            popup.id = 'popup-' + idx;
-            popup.innerHTML =
-                '<div class="detail-row">' + item.name     + '</div>' +
-                '<div class="detail-row">' + item.email    + '</div>' +
-                '<div class="detail-row">' + item.category + '</div>' +
+            card.innerHTML = 
+                '<div class="result-label">' + escapeHtml(item.name) + '</div>' +
+                '<div class="professional-info">' +
+                '   <div class="info-row">' +
+                '       <div class="info-label">Category</div>' +
+                '       <div>' + escapeHtml(item.category) + '</div>' +
+                '   </div>' +
+                '   <div class="info-row">' +
+                '       <div class="info-label">Email</div>' +
+                '       <div>' + escapeHtml(item.email) + '</div>' +
+                '   </div>' +
+                '</div>' +
                 '<button class="send-btn" data-id="' + item.id + '">SEND MESSAGE</button>';
 
-            card.addEventListener('click', function () {
-                toggleCard(card, popup);
-            });
-
             listEl.appendChild(card);
-            listEl.appendChild(popup);
         });
 
-        // Wire SEND MESSAGE buttons (event delegation)
+        // Wire SEND MESSAGE buttons with event delegation
         listEl.addEventListener('click', function (e) {
             var btn = e.target.closest('.send-btn');
             if (!btn) return;
-            e.stopPropagation();                     // don't also toggle the card
             sendMessage(btn.getAttribute('data-id'));
         });
     }
 
-    //Toggle selected state 
-    function toggleCard(card, popup) {
-        var isOpen = card.classList.contains('selected');
-
-        // Close everything first
-        listEl.querySelectorAll('.result-card').forEach(function (c) {
-            c.classList.remove('selected');
-        });
-        listEl.querySelectorAll('.detail-popup').forEach(function (p) {
-            p.style.display = 'none';
-        });
-
-        // If this card wasn't already open, open it and hide siblings
-        if (!isOpen) {
-            card.classList.add('selected');
-            popup.style.display = 'block';
-
-            // Hide all other cards (only selected + its popup stay)
-            listEl.querySelectorAll('.result-card').forEach(function (c) {
-                if (c !== card) c.style.display = 'none';
-            });
-        } else {
-            // Re-show all cards
-            listEl.querySelectorAll('.result-card').forEach(function (c) {
-                c.style.display = '';
-            });
-        }
+    // Helper function to escape HTML special characters
+    function escapeHtml(text) {
+        var map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
     }
 
     //Send message - initiate conversation by sending a greeting

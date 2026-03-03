@@ -1,7 +1,13 @@
 import json
 import os
+import mimetypes
+import hashlib
+import secrets
 from config import get_db_connection
 from datetime import datetime
+
+MAX_VERIFICATION_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+ALLOWED_VERIFICATION_EXTENSIONS = {'.pdf', '.png', '.jpg', '.jpeg'}
 
 
 def _json_default(value):
@@ -214,25 +220,67 @@ def get_professional_sessions(request_handler, user_id):
 
 def save_verification_documents(user_id, category, document_data, filename):
     """Save verification documents and update professional record"""
+    if not user_id:
+        return {"status": "error", "message": "User ID is required"}
+
+    if not filename:
+        return {"status": "error", "message": "Filename is required"}
+
+    safe_original_name = os.path.basename(filename).strip()
+    if not safe_original_name:
+        return {"status": "error", "message": "Invalid filename"}
+
+    file_extension = os.path.splitext(safe_original_name)[1].lower()
+    if file_extension not in ALLOWED_VERIFICATION_EXTENSIONS:
+        return {"status": "error", "message": "Unsupported file type. Allowed: PDF, PNG, JPG, JPEG"}
+
+    if not document_data:
+        return {"status": "error", "message": "Uploaded file is empty"}
+
+    file_size = len(document_data)
+    if file_size > MAX_VERIFICATION_FILE_SIZE:
+        return {"status": "error", "message": "File exceeds maximum size of 5 MB"}
+
+    mime_type, _ = mimetypes.guess_type(safe_original_name)
+    mime_type = mime_type or 'application/octet-stream'
+    file_hash = hashlib.sha256(document_data).hexdigest()
+
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    upload_dir = os.path.abspath(os.path.join(base_dir, "uploads", "verification_documents"))
+
+    try:
+        normalized_user_id = int(user_id)
+    except (TypeError, ValueError):
+        return {"status": "error", "message": "Invalid user ID"}
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    random_suffix = secrets.token_hex(4)
+    stored_filename = f"professional_{normalized_user_id}_{timestamp}_{random_suffix}{file_extension}"
+    file_path = os.path.abspath(os.path.join(upload_dir, stored_filename))
+
+    if not file_path.startswith(upload_dir + os.sep):
+        return {"status": "error", "message": "Invalid file path"}
     
     connection = get_db_connection()
     if not connection:
         return {"status": "error", "message": "Database connection failed"}
     
     cursor = connection.cursor(dictionary=True)
+    file_written = False
+    new_document_id = None
+    old_documents = []
+    relative_path = None
     
     try:
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-        upload_dir = os.path.join(base_dir, "uploads", "verification_documents")
         os.makedirs(upload_dir, exist_ok=True)
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        file_extension = os.path.splitext(filename)[1]
-        new_filename = f"professional_{user_id}_{timestamp}{file_extension}"
-        file_path = os.path.join(upload_dir, new_filename)
 
         with open(file_path, 'wb') as f:
             f.write(document_data)
+        file_written = True
+
+        relative_path = os.path.relpath(file_path, base_dir)
+
+        connection.start_transaction()
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS VerificationDocuments (
@@ -240,26 +288,75 @@ def save_verification_documents(user_id, category, document_data, filename):
                 ProfessionalID INT NOT NULL,
                 FilePath VARCHAR(500) NOT NULL,
                 OriginalFileName VARCHAR(255) NOT NULL,
+                FileSize INT,
+                MimeType VARCHAR(100),
+                FileHash VARCHAR(64),
                 UploadedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (ProfessionalID)
                     REFERENCES MentalHealthProfessionals(ProfessionalID)
             )
         """)
 
-        relative_path = os.path.relpath(file_path, base_dir)
+        try:
+            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN FileSize INT")
+        except Exception:
+            pass
+        try:
+            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN MimeType VARCHAR(100)")
+        except Exception:
+            pass
+        try:
+            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN FileHash VARCHAR(64)")
+        except Exception:
+            pass
+        try:
+            cursor.execute("CREATE INDEX idx_verification_professional ON VerificationDocuments (ProfessionalID)")
+        except Exception:
+            pass
+        try:
+            cursor.execute("CREATE INDEX idx_verification_uploaded ON VerificationDocuments (UploadedAt)")
+        except Exception:
+            pass
 
         cursor.execute("""
-            INSERT INTO VerificationDocuments (ProfessionalID, FilePath, OriginalFileName)
-            VALUES (%s, %s, %s)
-        """, (user_id, relative_path, filename))
+            INSERT INTO VerificationDocuments (ProfessionalID, FilePath, OriginalFileName, FileSize, MimeType, FileHash)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (normalized_user_id, relative_path, safe_original_name, file_size, mime_type, file_hash))
+        new_document_id = cursor.lastrowid
 
         query = """
         UPDATE MentalHealthProfessionals 
         SET Category = %s, VerificationStatus = 'Pending'
         WHERE ProfessionalID = %s
         """
-        cursor.execute(query, (category, user_id))
+        cursor.execute(query, (category, normalized_user_id))
+        if cursor.rowcount == 0:
+            raise Exception("Professional not found")
+
+        cursor.execute("""
+            SELECT DocumentID, FilePath
+            FROM VerificationDocuments
+            WHERE ProfessionalID = %s AND DocumentID <> %s
+        """, (normalized_user_id, new_document_id))
+        old_documents = cursor.fetchall()
+
+        if old_documents:
+            old_ids = [doc['DocumentID'] for doc in old_documents]
+            placeholders = ','.join(['%s'] * len(old_ids))
+            cursor.execute(
+                f"DELETE FROM VerificationDocuments WHERE DocumentID IN ({placeholders})",
+                tuple(old_ids)
+            )
+
         connection.commit()
+
+        for old_doc in old_documents:
+            try:
+                old_path = os.path.abspath(os.path.join(base_dir, old_doc['FilePath']))
+                if old_path.startswith(upload_dir + os.sep) and os.path.isfile(old_path):
+                    os.remove(old_path)
+            except Exception:
+                pass
 
         return {
             "status": "success",
@@ -268,6 +365,11 @@ def save_verification_documents(user_id, category, document_data, filename):
 
     except Exception as e:
         connection.rollback()
+        if file_written and os.path.isfile(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
         return {"status": "error", "message": str(e)}
     finally:
         cursor.close()

@@ -29,19 +29,24 @@ def get_student_profile(request_handler, user_id):
             request_handler.wfile.write(json.dumps({"status": "error", "message": "Student not found"}).encode())
             return
         
-        # Get all verified professionals with session count
+        # Get all verified professionals the student has interacted with (through messages or sessions)
         cursor.execute("""
-            SELECT 
+            SELECT DISTINCT
                 mhp.ProfessionalID,
                 mhp.FullName,
                 mhp.Category,
-                COUNT(sa.AppointmentID) as session_count
+                COUNT(DISTINCT sa.AppointmentID) as session_count
             FROM MentalHealthProfessionals mhp
             LEFT JOIN SessionAppointments sa ON mhp.ProfessionalID = sa.ProfessionalID AND sa.StudentID = %s
+            LEFT JOIN Messages m ON mhp.ProfessionalID = m.ProfessionalID AND m.StudentID = %s
             WHERE mhp.VerificationStatus = 'Verified'
+            AND (
+                m.MessageID IS NOT NULL
+                OR sa.AppointmentID IS NOT NULL
+            )
             GROUP BY mhp.ProfessionalID
             ORDER BY mhp.FullName
-        """, (user_id,))
+        """, (user_id, user_id))
         professionals = cursor.fetchall()
         
         # Get reviews/ratings left by student
