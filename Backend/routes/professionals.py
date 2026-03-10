@@ -36,6 +36,33 @@ def get_all_professionals(request_handler):
         """)
         professionals = cursor.fetchall()
 
+        # Attach anonymous review details for student-side search cards.
+        for professional in professionals:
+            professional_id = professional['ProfessionalID']
+            cursor.execute("""
+                SELECT
+                    Rating,
+                    FeedbackText
+                FROM FeedbackRatings
+                WHERE ProfessionalID = %s
+                ORDER BY FeedbackID DESC
+            """, (professional_id,))
+            review_rows = cursor.fetchall()
+
+            professional['reviews'] = [
+                {
+                    "rating": row.get('Rating'),
+                    "feedback_text": row.get('FeedbackText') or "",
+                    "reviewer": "Anonymous Student"
+                }
+                for row in review_rows
+            ]
+            professional['review_count'] = len(review_rows)
+            professional['average_rating'] = round(
+                sum(row['Rating'] for row in review_rows) / len(review_rows),
+                2
+            ) if review_rows else 0
+
         request_handler._set_headers(200, 'application/json')
         response = json.dumps({
             "status": "success",
@@ -100,17 +127,17 @@ def get_professional_profile(request_handler, user_id):
         cursor.execute("""
             SELECT 
                 fr.FeedbackID,
-                fr.StudentID,
-                s.FullName as student_name,
                 fr.Rating,
                 fr.FeedbackText
             FROM FeedbackRatings fr
-            JOIN Students s ON fr.StudentID = s.StudentID
             WHERE fr.ProfessionalID = %s
             ORDER BY fr.FeedbackID DESC
         """, (user_id,))
         
         reviews = cursor.fetchall()
+
+        for review in reviews:
+            review['reviewer'] = 'Anonymous Student'
         
         # Calculate average rating
         avg_rating = sum(r['Rating'] for r in reviews) / len(reviews) if reviews else 0
