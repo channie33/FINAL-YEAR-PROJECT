@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     }
 
-    let availableProfessionals = [];
+    let availableProfessionals = []; 
 
     // Fetch and display student profile
     async function loadStudentProfile() {
