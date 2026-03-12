@@ -567,7 +567,7 @@ body {
     padding: 15px;
     background: white;
     border-radius: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
     cursor: pointer;
     transition: background-color 0.2s;
     border: 1px solid #e0e0e0;
@@ -580,7 +580,7 @@ body {
 .messaging-layout .conv-name {
     font-weight: bold;
     color: #1a4d3e;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     font-size: 15px;
 }
 
