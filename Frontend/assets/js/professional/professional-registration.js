@@ -7,6 +7,18 @@ document.getElementById('professionalForm').addEventListener('submit', async fun
     const password = document.getElementById('professional-password').value;
     const confirmPassword = document.getElementById('professional-confirm-password').value;
     
+    // Validate name (letters, spaces, hyphens only)
+    if (!/^[A-Za-z\s\-']+$/.test(name.trim())) {
+        alert('Name must contain only letters');
+        return;
+    }
+
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        alert('Please enter a valid email address');
+        return;
+    }
+
     // Validate passwords match
     if (password !== confirmPassword) {
         alert('Passwords do not match!');

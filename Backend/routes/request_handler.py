@@ -6,7 +6,9 @@ import os #filepath handling
 from .auth import handle_register, handle_login, handle_verify_otp, handle_get_user
 from .professionals import handle_submit_verification, get_professional_profile, get_professional_messages, get_professional_sessions, get_all_professionals
 from .student import get_student_profile, get_student_messages, get_student_sessions, add_student_review
-from .admin import get_pending_verifications, verify_professional, get_all_users, get_verification_document
+from .admin import (get_pending_verifications, verify_professional, get_all_users, get_verification_document,
+    get_report_user_registrations, get_report_sessions, get_report_verification,
+    get_report_feedback, get_report_messaging)
 from .messages import (
     get_student_admin_messages,
     send_student_admin_message,
@@ -165,6 +167,22 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == '/api/admin/verification-document':
             professional_id = query_params.get('professional_id', [None])[0]
             get_verification_document(self, professional_id)
+
+        # Admin report endpoints
+        elif path == '/api/admin/reports/registrations':
+            get_report_user_registrations(self)
+
+        elif path == '/api/admin/reports/sessions':
+            get_report_sessions(self)
+
+        elif path == '/api/admin/reports/verification':
+            get_report_verification(self)
+
+        elif path == '/api/admin/reports/feedback':
+            get_report_feedback(self)
+
+        elif path == '/api/admin/reports/messaging':
+            get_report_messaging(self)
 
         elif path == '/api/sessions/slots':
             professional_id = query_params.get('professional', [None])[0]

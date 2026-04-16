@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Reports</title>
+    <link rel="stylesheet" href="/assets/css/admin/admin.css">
+    <link rel="stylesheet" href="/assets/css/admin/admin-reports.css">
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo"><span class="better">Better </span><br>
+            <span class="space">space</span></div>
+        <div class="header-title"><center>ADMIN PANEL</center></div>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <a href="/assets/pages/admin/users.html" class="sidebar-item">USERS</a>
+            <a href="/assets/pages/admin/messaging.html" class="sidebar-item">MESSAGES</a>
+            <a href="/assets/pages/admin/verification.html" class="sidebar-item">VERIFICATION</a>
+            <a href="/assets/pages/admin/reports.html" class="sidebar-item active">REPORTS</a>
+            <a href="/assets/pages/shared/index.html" class="sidebar-item logout">LOG OUT</a>
+        </div>
+
+        <div class="main-content">
+            <div class="reports-header">
+                <h2>REPORTS</h2>
+                <div class="report-tabs">
+                    <button class="report-tab active" data-report="registrations">User Registrations</button>
+                    <button class="report-tab" data-report="sessions">Session Appointments</button>
+                    <button class="report-tab" data-report="verification">Verification Status</button>
+                    <button class="report-tab" data-report="feedback">Feedback &amp; Ratings</button>
+                    <button class="report-tab" data-report="messaging">Messaging Activity</button>
+                </div>
+            </div>
+
+            <!-- Report 1: User Registrations -->
+            <div id="report-registrations" class="report-section active">
+                <div class="report-section-header">
+                    <h3>User Registrations by Month</h3>
+                    <button class="download-btn" onclick="downloadTableAsCSV('table-registrations', 'user-registrations.csv')">&#8595; Download CSV</button>
+                </div>
+                <table class="report-table" id="table-registrations">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>User Type</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Report 2: Session Appointments -->
+            <div id="report-sessions" class="report-section">
+                <div class="report-section-header">
+                    <h3>Sessions by Professional</h3>
+                    <button class="download-btn" onclick="downloadTableAsCSV('table-sessions-professional', 'sessions-by-professional.csv')">&#8595; Download CSV</button>
+                </div>
+                <table class="report-table" id="table-sessions-professional">
+                    <thead>
+                        <tr>
+                            <th>Professional</th>
+                            <th>Category</th>
+                            <th>Total Sessions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div class="report-section-header" style="margin-top:24px;">
+                    <h3>Sessions by Category</h3>
+                    <button class="download-btn" onclick="downloadTableAsCSV('table-sessions-category', 'sessions-by-category.csv')">&#8595; Download CSV</button>
+                </div>
+                <table class="report-table" id="table-sessions-category">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Total Sessions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Report 3: Verification Status -->
+            <div id="report-verification" class="report-section">
+                <div class="report-section-header">
+                    <h3>Verification Status Overview</h3>
+                    <button class="download-btn" onclick="downloadTableAsCSV('table-verification-status', 'verification-status.csv')">&#8595; Download CSV</button>
+                </div>
+                <table class="report-table" id="table-verification-status">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div class="report-section-header" style="margin-top:24px;">
+                    <h3>Verification by Category</h3>
+                    <button class="download-btn" onclick="downloadTableAsCSV('table-verification-category', 'verification-by-category.csv')">&#8595; Download CSV</button>
+                </div>
+                <table class="report-table" id="table-verification-category">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Status</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Report 4: Feedback & Ratings -->
+            <div id="report-feedback" class="report-section">
+                <div class="report-section-header">
+                    <h3>Feedback &amp; Ratings by Professional</h3>
+                    <button class="download-btn" onclick="downloadTableAsCSV('table-feedback', 'feedback-ratings.csv')">&#8595; Download CSV</button>
+                </div>
+                <table class="report-table" id="table-feedback">
+                    <thead>
+                        <tr>
+                            <th>Professional</th>
+                            <th>Category</th>
+                            <th>Avg Rating</th>
+                            <th>Total Reviews</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Report 5: Messaging Activity -->
+            <div id="report-messaging" class="report-section">
+                <div class="report-section-header">
+                    <h3>Messaging Activity by Month</h3>
+                    <button class="download-btn" onclick="downloadTableAsCSV('table-messaging', 'messaging-activity.csv')">&#8595; Download CSV</button>
+                </div>
+                <table class="report-table" id="table-messaging">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Total Messages</th>
+                            <th>From Students</th>
+                            <th>From Professionals</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <div id="report-error" class="report-error" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script src="/assets/js/admin/admin-reports.js"></script>
+</body>
+</html>

@@ -1,4 +1,222 @@
-## Better Space Backend Documentation
+# Better Space — Final Year Project
+
+**Better Space** is a web-based mental health support platform that connects university students with verified mental health professionals. Students can search for professionals, book sessions, exchange messages, and leave feedback. Professionals submit credentials for admin review before being listed. Admins manage verifications, users, and view platform analytics.
+
+---
+
+## Panel Presentation — Q&A Preparation
+
+### Q1: What problem does this project solve?
+
+**Answer:** University students often struggle to access affordable and trusted mental health support. Better Space addresses this by creating a dedicated platform that connects students directly to qualified mental health professionals. It adds a verification layer — professionals must submit credentials and be approved by an admin — to ensure students are never exposed to unqualified practitioners.
+
+---
+
+### Q2: What technology stack did you use and why?
+
+**Answer:** The backend is built with **Python's built-in `http.server`** module — no external web framework like Flask or Django was used. This was a deliberate design choice to demonstrate understanding of how HTTP servers work at a lower level, including request parsing, routing, and response serialization. The database is **MySQL**, chosen for its reliability with relational data and support for foreign key constraints. The frontend is plain **HTML, CSS, and vanilla JavaScript** to keep the project self-contained and avoid build toolchain complexity.
+
+**Key file:** `Backend/app.py` — lines 1–21
+```python
+from http.server import HTTPServer
+from routes.request_handler import RequestHandler
+
+def run_server(port=None):
+    port = int(os.getenv('PORT')) if os.getenv('PORT') else 8080
+    httpd = HTTPServer(('', port), RequestHandler)
+    httpd.serve_forever()
+```
+This manually bootstraps the HTTP server, binding a custom `RequestHandler` class that handles all routing logic.
+
+---
+
+### Q3: How does user registration and authentication work?
+
+**Answer:** Registration is handled in `Backend/routes/auth.py`. When a user submits the registration form:
+1. Password complexity is validated server-side (minimum 8 characters, uppercase, lowercase, number, special character).
+2. The password is hashed using **bcrypt** before storage — plain-text passwords are never saved to the database.
+3. A 6-digit OTP is generated and emailed to the user via Gmail SMTP.
+4. The user must verify the OTP before the account is activated.
+
+**OTP generation** (`Backend/routes/auth.py`, line 11):
+```python
+def generate_otp():
+    return ''.join(random.choices(string.digits, k=6))
+```
+OTPs are stored temporarily in a server-side dictionary (`otp_storage`) keyed by email, not in the database, so they are never persisted to disk.
+
+**Password hashing** (`Backend/routes/auth.py`, line 64):
+```python
+password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+```
+`bcrypt.gensalt()` automatically generates a random salt, making each hash unique even for identical passwords.
+
+---
+
+### Q4: How does the routing system work without a framework?
+
+**Answer:** All HTTP requests go through a single class — `RequestHandler` in `Backend/routes/request_handler.py`. It extends Python's `BaseHTTPRequestHandler` and overrides `do_GET`, `do_POST`, and `do_OPTIONS`. Inside each method, the URL path is parsed using `urlparse`, and a chain of `if/elif` conditions dispatches the request to the correct handler function.
+
+**Key file:** `Backend/routes/request_handler.py` — lines 27–60
+```python
+class RequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        parsed_path = urlparse(self.path)
+        path = parsed_path.path
+        if path == '/':
+            self.serve_file(index_path)
+        elif path.startswith('/pages/'):
+            self.serve_file(...)  # serves HTML pages
+        elif path.startswith('/assets/'):
+            self.serve_file(...)  # serves CSS/JS/images
+        elif path == '/api/student/profile':
+            get_student_profile(self, student_id)
+        # ... and so on
+```
+This manually implements what a framework's router does automatically — it was built this way to demonstrate the fundamentals.
+
+---
+
+### Q5: How does the professional verification workflow work?
+
+**Answer:** This is a three-step admin workflow:
+1. A professional registers and is given `VerificationStatus = 'Pending'` in the `MentalHealthProfessionals` table.
+2. They upload their credentials (PDF/PNG/JPG, max 5 MB) via the verification page. The file is saved to the `uploads/verification_documents/` directory.
+3. The admin dashboard (`Frontend/assets/pages/admin/verification.html`) calls `GET /api/admin/verifications` which runs a SQL JOIN to fetch pending professionals alongside their latest uploaded document.
+4. The admin clicks Approve or Reject, which calls `POST /api/admin/verify` and updates `VerificationStatus` to `'Verified'` or `'Rejected'`.
+
+**Key file:** `Backend/routes/professionals.py` — file upload security:
+```python
+MAX_VERIFICATION_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+ALLOWED_VERIFICATION_EXTENSIONS = {'.pdf', '.png', '.jpg', '.jpeg'}
+```
+File type and size are validated before saving. A SHA-256 hash of the file is also stored to detect duplicates.
+
+**Key SQL query** (`Backend/routes/admin.py` — `get_pending_verifications`):
+```sql
+SELECT p.ProfessionalID, p.FullName, p.Email, p.Category,
+       vd.FilePath, vd.OriginalFileName
+FROM MentalHealthProfessionals p
+LEFT JOIN (
+    SELECT vd1.ProfessionalID, vd1.FilePath, vd1.OriginalFileName, vd1.UploadedAt
+    FROM VerificationDocuments vd1
+    JOIN (SELECT ProfessionalID, MAX(UploadedAt) as LatestUpload
+          FROM VerificationDocuments GROUP BY ProfessionalID) latest
+    ON vd1.ProfessionalID = latest.ProfessionalID
+    AND vd1.UploadedAt = latest.LatestUpload
+) vd ON p.ProfessionalID = vd.ProfessionalID
+WHERE p.VerificationStatus = 'Pending'
+```
+The subquery ensures only the most recently uploaded document is shown per professional.
+
+---
+
+### Q6: How does session booking work?
+
+**Answer:** Professionals set their available dates and time slots (09:00, 13:00, 16:00) via their dashboard. These are stored in the `ProfessionalSchedule` table with a `Status` of `'Available'`. When a student books:
+1. The frontend calls `GET /api/sessions/slots` to load a professional's availability for a chosen date.
+2. The student selects a slot and submits — `POST /api/sessions/book` is called.
+3. The backend verifies the professional is `Verified`, checks the slot is still `'Available'`, inserts a row into `SessionAppointments`, and updates the slot to `'Booked'` — all in a single database transaction.
+
+**Key file:** `Backend/routes/sessions.py` — `book_session` function (lines 45–end):
+```python
+if professional['VerificationStatus'] != 'Verified':
+    # 403 Forbidden — cannot book unverified professional
+```
+This is a critical business rule enforced server-side, not just in the UI.
+
+---
+
+### Q7: How is the messaging system implemented?
+
+**Answer:** The platform has two message contexts:
+- **Student ↔ Professional** direct messaging (stored in the `Messages` table).
+- **Student/Professional ↔ Admin** support messaging (stored in the `AdminMessages` table).
+
+Both routes live in `Backend/routes/messages.py`. Messages are fetched via GET endpoints and sent via POST. The frontend polls for new messages using `setInterval` in the JS files (`Frontend/assets/js/student/student-messaging.js`, `professional-messaging.js`).
+
+**Database schema** (`Database/schema.sql`):
+```sql
+CREATE TABLE Messages (
+    -- stores direct messages between students and professionals
+);
+CREATE TABLE AdminMessages (
+    -- stores support messages with the admin
+);
+```
+
+---
+
+### Q8: What security measures did you implement?
+
+**Answer:**
+| Threat | Mitigation |
+|---|---|
+| Password storage | bcrypt hashing with random salt (`Backend/routes/auth.py` line 64) |
+| Account takeover | OTP email verification required on registration (`Backend/routes/auth.py` — `handle_verify_otp`) |
+| Malicious file uploads | Extension whitelist + 5 MB size cap (`Backend/routes/professionals.py` lines 9–10) |
+| SQL injection | Parameterised queries used throughout — `cursor.execute(query, (param,))` never string formatting |
+| Booking unverified professionals | Server-side `VerificationStatus` check before any booking is accepted (`Backend/routes/sessions.py`) |
+| CORS | `Access-Control-Allow-Origin` header set in `_set_headers` (`Backend/routes/request_handler.py` line 34) |
+
+---
+
+### Q9: How is the database structured?
+
+**Answer:** The schema (`Database/schema.sql`) defines 7 tables with normalised relationships:
+
+```
+Students  ──────┐
+                ├──► SessionAppointments ◄── ProfessionalSchedule
+MentalHealth    │
+Professionals ──┘
+    │
+    └──► VerificationDocuments
+    │
+    └──► FeedbackRatings ◄── Students
+    │
+    └──► Messages ◄── Students
+    │
+    └──► AdminMessages
+```
+
+Foreign key constraints enforce referential integrity — e.g., you cannot book a session for a student or professional that does not exist.
+
+---
+
+### Q10: How do you start and run the project?
+
+**Answer:** A PowerShell launch script `run.ps1` handles everything:
+```powershell
+.\run.ps1 -Port 8080
+```
+This starts the Python backend. The frontend is served by the same backend — navigating to `http://localhost:8080` loads the landing page (`Frontend/assets/pages/shared/index.html`). No separate frontend server is needed because `request_handler.py` serves all static files directly.
+
+---
+
+## Project Structure Quick Reference
+
+| Path | Purpose |
+|---|---|
+| `Backend/app.py` | HTTP server entry point |
+| `Backend/config.py` | MySQL connection factory using environment variables |
+| `Backend/routes/request_handler.py` | Central router — all GET/POST routing logic |
+| `Backend/routes/auth.py` | Registration, login, OTP verification |
+| `Backend/routes/professionals.py` | Professional profile, verification upload, search listing |
+| `Backend/routes/admin.py` | Admin: pending verifications, approve/reject, user management, reports |
+| `Backend/routes/sessions.py` | Slot availability and session booking |
+| `Backend/routes/messages.py` | All messaging endpoints |
+| `Backend/utils/email.py` | Gmail SMTP OTP email sender |
+| `Database/schema.sql` | Full database schema — all 7 tables |
+| `Database/init_db.py` | Database initialisation script |
+| `Frontend/assets/pages/` | All HTML pages (student/, professional/, admin/, shared/) |
+| `Frontend/assets/js/` | All JavaScript (mirrors pages structure) |
+| `Frontend/assets/css/` | All stylesheets (mirrors pages structure) |
+| `uploads/verification_documents/` | Uploaded professional credential files |
+
+---
+
+## Original Backend Architecture Notes
 
 This project uses a lightweight Python backend built on top of `http.server` and MySQL.
 
