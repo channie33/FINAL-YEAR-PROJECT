@@ -1,0 +1,69 @@
+.guidelines-container {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 50px 40px 80px;
+}
+
+.guidelines-container h2 {
+    color: #1a4d3e;
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.guidelines-container .subtitle {
+    text-align: center;
+    color: #555;
+    font-size: 15px;
+    margin-bottom: 40px;
+    font-style: italic;
+}
+
+.guideline-section {
+    margin-bottom: 32px;
+}
+
+.guideline-section h3 {
+    color: #1a4d3e;
+    font-size: 17px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.guideline-section p,
+.guideline-section ul {
+    color: #333;
+    font-size: 15px;
+    line-height: 1.8;
+}
+
+.guideline-section ul {
+    padding-left: 22px;
+}
+
+.guideline-section ul li {
+    margin-bottom: 6px;
+}
+
+.back-link {
+    display: inline-block;
+    margin-bottom: 30px;
+    color: #1a4d3e;
+    font-size: 14px;
+    text-decoration: none;
+    border-bottom: 1px solid #1a4d3e;
+}
+
+.back-link:hover {
+    opacity: 0.7;
+}
+
+hr.divider {
+    border: none;
+    border-top: 1px solid #c8c5b0;
+    margin: 32px 0;
+}

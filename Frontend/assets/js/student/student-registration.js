@@ -54,6 +54,12 @@ document.getElementById('studentForm').addEventListener('submit', async function
         return;
     }
 
+    // Validate community guidelines checkbox
+    if (!document.getElementById('student-guidelines').checked) {
+        alert('You must read and agree to the Community Guidelines before registering.');
+        return;
+    }
+
     // To split name into first and last name
     const nameParts = name.trim().split(' ');
     const firstName = nameParts[0];

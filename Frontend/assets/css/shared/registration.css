@@ -162,6 +162,39 @@ body {
     transform: translateY(-1px);
 }
 
+/* Guidelines checkbox */
+.guidelines-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: #1a4d3e;
+}
+
+.guidelines-check input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    accent-color: #1a4d3e;
+    cursor: pointer;
+}
+
+.guidelines-check label {
+    cursor: pointer;
+    line-height: 1.4;
+}
+
+.guidelines-check a {
+    color: #1a4d3e;
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+.guidelines-check a:hover {
+    opacity: 0.7;
+}
+
 
 /* Responsive Design */
 @media (max-width: 768px) {

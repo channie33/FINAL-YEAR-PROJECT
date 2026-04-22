@@ -55,6 +55,12 @@ document.getElementById('professionalForm').addEventListener('submit', async fun
         return;
     }
     
+    // Validate community guidelines checkbox
+    if (!document.getElementById('professional-guidelines').checked) {
+        alert('You must read and agree to the Community Guidelines before registering.');
+        return;
+    }
+
     // Split name into first and last name
     const nameParts = name.trim().split(' ');
     const firstName = nameParts[0];

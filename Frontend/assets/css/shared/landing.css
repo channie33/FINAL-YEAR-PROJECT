@@ -158,6 +158,30 @@ body {
     border-radius: 20px;
 }
 
+.landing-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    padding: 14px;
+}
+
+.footer-link {
+    color: rgba(255, 255, 255, 0.55);
+    font-family: 'Georgia', serif;
+    font-size: 13px;
+    text-decoration: none;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    padding-bottom: 1px;
+}
+
+.footer-link:hover {
+    color: rgba(255, 255, 255, 0.9);
+    border-bottom-color: rgba(255, 255, 255, 0.7);
+}
+
 .admin-login-link:hover {
     background-color: rgba(255, 255, 255, 0.12);
     color: white;
