@@ -129,6 +129,32 @@ body {
     box-shadow: 0 0 10px rgba(29, 77, 62, 0.2);
 }
 
+.password-rules {
+    background-color: #f5f4e8;
+    border: 1px solid #c8c3a7;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-top: -10px;
+    margin-bottom: 20px;
+    color: #1a4d3e;
+}
+
+.password-rules-title {
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.password-rules ul {
+    margin-left: 18px;
+}
+
+.password-rules li {
+    font-size: 13px;
+    line-height: 1.45;
+    margin-bottom: 3px;
+}
+
 
 .next-btn {
     position: absolute;
@@ -255,5 +281,17 @@ body {
     .form-group input {
         padding: 10px 15px;
         font-size: 14px;
+    }
+
+    .password-rules {
+        padding: 10px 12px;
+    }
+
+    .password-rules-title {
+        font-size: 13px;
+    }
+
+    .password-rules li {
+        font-size: 12px;
     }
 }

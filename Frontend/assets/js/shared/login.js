@@ -10,20 +10,9 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     }
     
     try {//to send log in request to the backend
-        const response = await fetch('/api/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                email: email,
-                password: password
-            })
-        });
+        const data = await apiPost('/api/login', { email, password }, { includeAuth: false });
         
-        const data = await response.json();
-        
-        if (response.ok) {
+        if (data.status === 'success') {
             // Store user data in localStorage
             localStorage.setItem('user', JSON.stringify(data.user));
             localStorage.setItem('pending_user_id', data.user.user_id);

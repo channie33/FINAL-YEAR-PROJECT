@@ -3,11 +3,12 @@ import os
 import mimetypes
 import hashlib
 import secrets
-from config import get_db_connection
+from config import get_db_connection, MAX_FILE_SIZE, ALLOWED_EXTENSIONS
+from utils.file_upload import validate_file_upload, calculate_file_hash, sanitize_filename, get_safe_file_path
 from datetime import datetime
 
-MAX_VERIFICATION_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
-ALLOWED_VERIFICATION_EXTENSIONS = {'.pdf', '.png', '.jpg', '.jpeg'}
+# File upload settings use values from config.py
+# MAX_FILE_SIZE and ALLOWED_EXTENSIONS are imported from config
 
 
 def _json_default(value):
@@ -532,6 +533,19 @@ def handle_submit_verification(request_handler, post_data, content_type):
             response = json.dumps({"status": "error", "message": "No filename provided"}, default=_json_default)
             request_handler.wfile.write(response.encode())
             return
+        
+        # Validate file upload
+        is_valid, errors = validate_file_upload(filename, file_data, ALLOWED_EXTENSIONS, MAX_FILE_SIZE)
+        if not is_valid:
+            print(f"File validation failed: {errors}")
+            request_handler._set_headers(400, 'application/json')
+            response = json.dumps({"status": "error", "message": errors[0]}, default=_json_default)
+            request_handler.wfile.write(response.encode())
+            return
+        
+        # Sanitize filename
+        filename = sanitize_filename(filename)
+        print(f"Sanitized filename: {filename}")
         
         user_id = form_data.get('user_id')
         category = form_data.get('specialization', 'General Mental Health')

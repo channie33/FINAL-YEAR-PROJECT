@@ -44,26 +44,23 @@ async function verifyOTP() {
     }
 
     try {
-        const response = await fetch('/api/verify-otp', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                user_id: userId,
-                user_type: userType,
-                otp_code: otp
-            })
-        });
-        const data = await response.json();
+        const data = await apiPost('/api/verify-otp', {
+            user_id: userId,
+            user_type: userType,
+            otp_code: otp
+        }, { includeAuth: false });
 
-        if (response.ok) {
+        if (data.status === 'success') {
+            // Store JWT token from response
+            if (data.token) {
+                setAuthToken(data.token);
+            }
+            
             // Always fetch the full user object after verification
             let userFetched = false;
             try {
-                const userRes = await fetch(`/api/user?user_id=${encodeURIComponent(userId)}&user_type=${encodeURIComponent(userType)}`);
-                const userData = await userRes.json();
-                if (userRes.ok && userData.status === 'success' && userData.user) {
+                const userData = await apiGet(`/api/user?user_id=${encodeURIComponent(userId)}&user_type=${encodeURIComponent(userType)}`);
+                if (userData.status === 'success' && userData.user) {
                     // Normalize user object for students: ensure both user_id and StudentID are present
                     let userObj = userData.user;
                     if (userType === 'student') {

@@ -5,6 +5,7 @@ import random
 import string
 from config import get_db_connection
 from utils.email import send_otp_email
+from utils.security import is_rate_limited, validate_email, validate_password, create_jwt_token
 
 def generate_otp():
     """Generate a 6-digit OTP"""
@@ -26,39 +27,18 @@ def handle_register(request_handler, data):
         request_handler.wfile.write(response.encode())
         return
     
+    # Validate email
+    if not validate_email(email):
+        request_handler._set_headers(400, 'application/json')
+        response = json.dumps({"status": "error", "message": "Invalid email format"})
+        request_handler.wfile.write(response.encode())
+        return
+    
     # Validate password complexity
-    if len(password) < 8:
+    password_errors = validate_password(password)
+    if password_errors:
         request_handler._set_headers(400, 'application/json')
-        response = json.dumps({"status": "error", "message": "Password must be at least 8 characters long"})
-        request_handler.wfile.write(response.encode())
-        return
-    
-    # Check for uppercase letter
-    if not any(c.isupper() for c in password):
-        request_handler._set_headers(400, 'application/json')
-        response = json.dumps({"status": "error", "message": "Password must contain at least one uppercase letter"})
-        request_handler.wfile.write(response.encode())
-        return
-    
-    # Check for lowercase letter
-    if not any(c.islower() for c in password):
-        request_handler._set_headers(400, 'application/json')
-        response = json.dumps({"status": "error", "message": "Password must contain at least one lowercase letter"})
-        request_handler.wfile.write(response.encode())
-        return
-    
-    # Check for number
-    if not any(c.isdigit() for c in password):
-        request_handler._set_headers(400, 'application/json')
-        response = json.dumps({"status": "error", "message": "Password must contain at least one number"})
-        request_handler.wfile.write(response.encode())
-        return
-    
-    # Check for special character
-    import re
-    if not re.search(r'[!@#$%^&*()_+\-=\[\]{};:\'\"\\|,.<>/?]', password):
-        request_handler._set_headers(400, 'application/json')
-        response = json.dumps({"status": "error", "message": "Password must contain at least one special character"})
+        response = json.dumps({"status": "error", "message": password_errors[0]})
         request_handler.wfile.write(response.encode())
         return
     
@@ -160,10 +140,16 @@ def handle_verify_otp(request_handler, data):
     # To remove used OTP
     del otp_storage[otp_key]
     
+    # Generate JWT token upon successful OTP verification
+    jwt_token = create_jwt_token(user_id, user_type, expires_in_hours=24)
+    
     request_handler._set_headers(200, 'application/json')
     response = json.dumps({
         "status": "success",
-        "message": "Email verified successfully"
+        "message": "Email verified successfully",
+        "token": jwt_token,
+        "user_id": user_id,
+        "user_type": user_type
     })
     request_handler.wfile.write(response.encode())
 
@@ -171,6 +157,16 @@ def handle_login(request_handler, data):
     """Handle user login"""
     email = data.get('email')
     password = data.get('password')
+    
+    # Get client IP for rate limiting
+    client_ip = request_handler.client_address[0]
+    
+    # Check rate limiting
+    if is_rate_limited(client_ip, max_attempts=5, window_seconds=300):
+        request_handler._set_headers(429, 'application/json')
+        response = json.dumps({"status": "error", "message": "Too many login attempts. Please try again later."})
+        request_handler.wfile.write(response.encode())
+        return
     
     if not email or not password:
         request_handler._set_headers(400, 'application/json')

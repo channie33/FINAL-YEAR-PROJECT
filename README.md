@@ -14,19 +14,23 @@
 
 ### Q2: What technology stack did you use and why?
 
-**Answer:** The backend is built with **Python's built-in `http.server`** module — no external web framework like Flask or Django was used. This was a deliberate design choice to demonstrate understanding of how HTTP servers work at a lower level, including request parsing, routing, and response serialization. The database is **MySQL**, chosen for its reliability with relational data and support for foreign key constraints. The frontend is plain **HTML, CSS, and vanilla JavaScript** to keep the project self-contained and avoid build toolchain complexity.
+**Answer:** The backend is built with **Python's built-in `http.server`** module — no external web framework like Flask or Django was used. This was a deliberate design choice to demonstrate understanding of how HTTP servers work at a lower level, including request parsing, routing, and response serialization. The database is **MySQL**, chosen for its reliability with relational data and support for foreign key constraints. The frontend is plain **HTML, CSS, and vanilla JavaScript** to keep the project self-contained and avoid build toolchain complexity. **TLS/HTTPS** is provided via Python's `ssl` module with a self-signed certificate, and **JWT tokens** are generated using the `PyJWT` library for stateless session authentication.
 
-**Key file:** `Backend/app.py` — lines 1–21
+**Key file:** `Backend/app.py`
 ```python
+import ssl
 from http.server import HTTPServer
 from routes.request_handler import RequestHandler
 
 def run_server(port=None):
-    port = int(os.getenv('PORT')) if os.getenv('PORT') else 8080
+    port = int(os.getenv('PORT')) if os.getenv('PORT') else 8443
     httpd = HTTPServer(('', port), RequestHandler)
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(certfile='certs/cert.pem', keyfile='certs/key.pem')
+    httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
     httpd.serve_forever()
 ```
-This manually bootstraps the HTTP server, binding a custom `RequestHandler` class that handles all routing logic.
+The server now runs over HTTPS with TLS encryption on port 8443.
 
 ---
 
@@ -152,12 +156,27 @@ CREATE TABLE AdminMessages (
 **Answer:**
 | Threat | Mitigation |
 |---|---|
-| Password storage | bcrypt hashing with random salt (`Backend/routes/auth.py` line 64) |
-| Account takeover | OTP email verification required on registration (`Backend/routes/auth.py` — `handle_verify_otp`) |
-| Malicious file uploads | Extension whitelist + 5 MB size cap (`Backend/routes/professionals.py` lines 9–10) |
+| Data interception | HTTPS/TLS via Python `ssl` module — all traffic encrypted (`Backend/app.py`) |
+| Password storage | bcrypt hashing with random salt (`Backend/routes/auth.py`) |
+| Account takeover | OTP email verification required on login and registration |
+| Brute-force attacks | Rate limiting — 5 login attempts per IP per 5-minute window (`Backend/utils/security.py`) |
+| JWT authentication | Signed JWT tokens (HS256) with 24-hour expiration issued after OTP verification (`Backend/utils/security.py`) |
+| Malicious file uploads | Extension whitelist + 5 MB size cap + double-extension check + path traversal prevention (`Backend/utils/file_upload.py`) |
+| Filename attacks | `sanitize_filename()` strips path separators and dangerous characters before saving (`Backend/utils/file_upload.py`) |
 | SQL injection | Parameterised queries used throughout — `cursor.execute(query, (param,))` never string formatting |
+| XSS | `Content-Security-Policy` header sent on every response; `sanitize_input()` helper available (`Backend/utils/security.py`) |
+| Clickjacking | `X-Frame-Options: SAMEORIGIN` header on every response |
+| MIME sniffing | `X-Content-Type-Options: nosniff` header on every response |
+| HTTPS downgrade | `Strict-Transport-Security` (HSTS) header with 1-year `max-age` |
+| CORS abuse | `Access-Control-Allow-Origin` restricted to `ALLOWED_ORIGIN` from `.env` (not wildcard) |
+| Credential exposure | All secrets (DB password, JWT secret key) loaded from `.env` — never hardcoded in source |
 | Booking unverified professionals | Server-side `VerificationStatus` check before any booking is accepted (`Backend/routes/sessions.py`) |
-| CORS | `Access-Control-Allow-Origin` header set in `_set_headers` (`Backend/routes/request_handler.py` line 34) |
+
+**Key security files:**
+- `Backend/utils/security.py` — JWT utilities, rate limiting, email/password validation, input sanitization
+- `Backend/utils/file_upload.py` — file type/size validation, filename sanitization, path traversal prevention
+- `Backend/middleware/auth_middleware.py` — `require_auth` decorator and `verify_auth` helper for protecting endpoints
+- `Frontend/assets/js/utils/api.js` — frontend API utility that automatically attaches JWT `Authorization: Bearer <token>` header to all requests
 
 ---
 
@@ -188,9 +207,36 @@ Foreign key constraints enforce referential integrity — e.g., you cannot book 
 
 **Answer:** A PowerShell launch script `run.ps1` handles everything:
 ```powershell
-.\run.ps1 -Port 8080
+.\run.ps1 -Port 8443
 ```
-This starts the Python backend. The frontend is served by the same backend — navigating to `http://localhost:8080` loads the landing page (`Frontend/assets/pages/shared/index.html`). No separate frontend server is needed because `request_handler.py` serves all static files directly.
+This starts the Python backend over HTTPS. Navigate to `https://localhost:8443` to load the landing page. Your browser will show a security warning for the self-signed certificate — click **Advanced → Proceed** to bypass it (expected for local development).
+
+The frontend is served by the same backend — `request_handler.py` serves all static HTML, CSS, JS, and image files directly. No separate frontend server is needed.
+
+> **First run:** Ensure the self-signed certificate exists at `Backend/certs/cert.pem` and `Backend/certs/key.pem`. If missing, regenerate them with:
+> ```powershell
+> & ".\venv\Scripts\python.exe" -c "
+> from cryptography import x509
+> from cryptography.x509.oid import NameOID
+> from cryptography.hazmat.primitives import hashes, serialization
+> from cryptography.hazmat.primitives.asymmetric import rsa
+> import datetime, ipaddress, os
+> key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+> subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'localhost')])
+> cert = (x509.CertificateBuilder().subject_name(subject).issuer_name(issuer)
+>     .public_key(key.public_key()).serial_number(x509.random_serial_number())
+>     .not_valid_before(datetime.datetime.now(datetime.UTC))
+>     .not_valid_after(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=365))
+>     .add_extension(x509.SubjectAlternativeName([x509.DNSName('localhost'),
+>         x509.IPAddress(ipaddress.IPv4Address('127.0.0.1'))]), critical=False)
+>     .sign(key, hashes.SHA256()))
+> os.makedirs('Backend/certs', exist_ok=True)
+> open('Backend/certs/key.pem','wb').write(key.private_bytes(serialization.Encoding.PEM,
+>     serialization.PrivateFormat.TraditionalOpenSSL, serialization.NoEncryption()))
+> open('Backend/certs/cert.pem','wb').write(cert.public_bytes(serialization.Encoding.PEM))
+> print('Certificate generated')
+> "
+> ```
 
 ---
 
@@ -198,27 +244,34 @@ This starts the Python backend. The frontend is served by the same backend — n
 
 | Path | Purpose |
 |---|---|
-| `Backend/app.py` | HTTP server entry point |
-| `Backend/config.py` | MySQL connection factory using environment variables |
-| `Backend/routes/request_handler.py` | Central router — all GET/POST routing logic |
-| `Backend/routes/auth.py` | Registration, login, OTP verification |
-| `Backend/routes/professionals.py` | Professional profile, verification upload, search listing |
+| `Backend/app.py` | HTTPS server entry point (TLS/SSL wrapped) |
+| `Backend/config.py` | MySQL connection factory + security config from `.env` |
+| `Backend/certs/cert.pem` | TLS certificate (self-signed, valid 1 year) |
+| `Backend/certs/key.pem` | TLS private key |
+| `Backend/routes/request_handler.py` | Central router — all GET/POST routing + security headers |
+| `Backend/routes/auth.py` | Registration, login, OTP verification, JWT token issuance |
+| `Backend/routes/professionals.py` | Professional profile, verification upload (with file validation), search listing |
 | `Backend/routes/admin.py` | Admin: pending verifications, approve/reject, user management, reports |
 | `Backend/routes/sessions.py` | Slot availability and session booking |
 | `Backend/routes/messages.py` | All messaging endpoints |
+| `Backend/utils/security.py` | JWT utilities, rate limiting, email/password validation, sanitization |
+| `Backend/utils/file_upload.py` | File validation, filename sanitization, path traversal prevention |
 | `Backend/utils/email.py` | Gmail SMTP OTP email sender |
+| `Backend/middleware/auth_middleware.py` | JWT `require_auth` decorator and `verify_auth` helper |
 | `Database/schema.sql` | Full database schema — all 7 tables |
 | `Database/init_db.py` | Database initialisation script |
 | `Frontend/assets/pages/` | All HTML pages (student/, professional/, admin/, shared/) |
+| `Frontend/assets/js/utils/api.js` | Frontend API utility — JWT auth, all HTTP methods |
 | `Frontend/assets/js/` | All JavaScript (mirrors pages structure) |
 | `Frontend/assets/css/` | All stylesheets (mirrors pages structure) |
 | `uploads/verification_documents/` | Uploaded professional credential files |
+| `.env` | Environment variables — DB credentials, SECRET_KEY, ALLOWED_ORIGIN |
 
 ---
 
 ## Original Backend Architecture Notes
 
-This project uses a lightweight Python backend built on top of `http.server` and MySQL.
+This project uses a lightweight Python backend built on top of `http.server` and MySQL, served over HTTPS using Python's `ssl` module.
 
 Database name: `Better_Space`  
 Schema file: `Database/schema.sql`  
@@ -228,50 +281,60 @@ Initialization script: `Database/init_db.py`
 
 The backend is organized by responsibility:
 
-- `Backend/app.py`: HTTP server bootstrap.
-- `Backend/config.py`: MySQL connection factory.
+- `Backend/app.py`: HTTPS server bootstrap with TLS/SSL.
+- `Backend/config.py`: MySQL connection factory + security/upload config from `.env`.
 - `Backend/routes/`: request routing and endpoint handlers.
-- `Backend/utils/`: helper utilities (email OTP currently implemented).
-- `Backend/models/`: currently placeholder files for future model/domain abstraction.
-- `Backend/middleware/`: currently placeholder files for future auth/role middleware.
+- `Backend/utils/`: helper utilities — email OTP, JWT/security, file upload validation.
+- `Backend/middleware/`: JWT authentication middleware (`auth_middleware.py` implemented).
+- `Backend/models/`: placeholder files for future model/domain abstraction.
+- `Backend/certs/`: self-signed TLS certificate and private key.
 
 ### Request Flow
 
-1. `Backend/app.py` starts `HTTPServer` with `RequestHandler`.
+1. `Backend/app.py` starts `HTTPServer` wrapped in a TLS `SSLContext`.
 2. `Backend/routes/request_handler.py` inspects URL path and HTTP method.
-3. It dispatches to functions in `Backend/routes/*.py`.
-4. Route functions read/write MySQL through `get_db_connection()` from `Backend/config.py`.
-5. Responses are returned as JSON for API routes or static file content for frontend assets/pages.
+3. Every response includes security headers (HSTS, CSP, X-Frame-Options, etc.).
+4. It dispatches to functions in `Backend/routes/*.py`.
+5. Route functions read/write MySQL through `get_db_connection()` from `Backend/config.py`.
+6. Protected routes can use `@require_auth` from `Backend/middleware/auth_middleware.py` to verify JWT tokens.
+7. Responses are returned as JSON for API routes or static file content for frontend assets/pages.
 
 ## File-by-File Backend Explanation
 
 ### `Backend/app.py`
 
-Purpose: starts the HTTP server.
+Purpose: starts the HTTPS server.
 
 - Defines `run_server(port=None)`.
 - Port resolution order:
   - explicit `port` argument,
   - `PORT` environment variable,
-  - fallback default `8080`.
-- Instantiates `HTTPServer(('', port), RequestHandler)` and serves forever.
+  - fallback default `8443`.
+- Instantiates `HTTPServer(('', port), RequestHandler)`.
+- Wraps the socket with an `ssl.SSLContext` loading `Backend/certs/cert.pem` and `Backend/certs/key.pem`.
+- Serves over HTTPS forever.
 
 This is the backend entrypoint used by `run.ps1`.
 
 ### `Backend/config.py`
 
-Purpose: central database connector.
+Purpose: central database connector and security configuration.
 
-- Loads environment variables with `dotenv`.
+- Loads environment variables with `python-dotenv`.
 - `get_db_connection()` returns a MySQL connection using:
   - `DB_HOST` (default `localhost`)
   - `DB_USER` (default `root`)
   - `DB_PASSWORD` (default `ROOT`)
   - `DB_PORT` (default `3306`)
-  - fixed database `Better_Space`
-- Returns `None` and logs the exception if connection fails.
+  - `DB_NAME` (default `Better_Space`)
+- Exports security constants:
+  - `SECRET_KEY` — used for JWT signing
+  - `ALLOWED_ORIGIN` — the only origin accepted in CORS headers
+  - `MAX_FILE_SIZE` — maximum upload size in bytes (default 5 MB)
+  - `ALLOWED_EXTENSIONS` — list of permitted file extensions
+- Returns `None` and logs the exception if DB connection fails.
 
-All route modules depend on this function.
+All route modules depend on this module.
 
 ### `Backend/routes/request_handler.py`
 
@@ -279,7 +342,14 @@ Purpose: central HTTP router and static-file server.
 
 Key parts:
 
-- `_set_headers(status, content_type)`: standardizes response headers and CORS headers.
+- `_set_headers(status, content_type)`: standardizes response headers, CORS headers, and security headers:
+  - `Strict-Transport-Security` (HSTS, 1 year)
+  - `X-Content-Type-Options: nosniff`
+  - `X-Frame-Options: SAMEORIGIN`
+  - `X-XSS-Protection: 1; mode=block`
+  - `Content-Security-Policy`
+  - `Referrer-Policy`
+  - `Access-Control-Allow-Origin` (from `ALLOWED_ORIGIN` in `.env`, not wildcard)
 - `do_OPTIONS()`: responds to preflight requests.
 - `do_GET()`:
   - serves `/` as `Frontend/assets/pages/shared/index.html`
@@ -309,7 +379,7 @@ Mapped at `GET /api/test-db`.
 
 ### `Backend/routes/auth.py`
 
-Purpose: registration, login, OTP verification, and user lookup.
+Purpose: registration, login, OTP verification, JWT token issuance, and user lookup.
 
 Key functions:
 
@@ -317,12 +387,9 @@ Key functions:
 - `otp_storage`: in-memory OTP map keyed as `"{user_type}_{user_id}"`.
 - `handle_register(request_handler, data)`:
   - validates required fields
-  - validates password policy:
-    - minimum 8 chars
-    - uppercase
-    - lowercase
-    - digit
-    - special character
+  - validates email format via `validate_email()` from `utils/security.py`
+  - validates password policy via `validate_password()` from `utils/security.py`:
+    - minimum 8 chars, uppercase, lowercase, digit, special character
   - hashes password using `bcrypt`
   - inserts student or professional row
   - for professionals, default verification is `Pending`
@@ -330,7 +397,9 @@ Key functions:
 - `handle_verify_otp(request_handler, data)`:
   - checks OTP against in-memory storage
   - removes OTP on success
+  - **issues a signed JWT token** (`create_jwt_token(user_id, user_type)`) returned in the response
 - `handle_login(request_handler, data)`:
+  - checks client IP against rate limiter (`is_rate_limited()`) — blocks after 5 attempts per 5 min
   - looks up email in `Students`, then `MentalHealthProfessionals`, then `Admins`
   - blocks professional login unless `VerificationStatus == 'Verified'`
   - validates password with `bcrypt.checkpw`
@@ -343,6 +412,7 @@ Key functions:
 Important behavior note:
 
 - OTPs are stored in process memory (`otp_storage`), so server restart clears pending OTPs.
+- JWT tokens are stateless and verified on the client side — no server-side session storage needed.
 
 ### `Backend/routes/student.py`
 
@@ -388,11 +458,13 @@ Key functions:
 - `get_professional_sessions(request_handler, user_id)`:
   - returns session history with student and timeslot details
 - `save_verification_documents(user_id, category, document_data, filename)`:
-  - validates file size/type/path
+  - validates file using `validate_file_upload()` from `utils/file_upload.py`
+  - sanitizes filename via `sanitize_filename()` to prevent path traversal
   - writes document into `uploads/verification_documents`
   - creates/updates `VerificationDocuments` table and indexes if needed
   - updates professional category and status (`Pending`)
   - keeps latest document and cleans up older ones/files
+  - stores SHA-256 hash of file for integrity checking
 - `get_professional_verification_status(request_handler, user_id)`:
   - returns current verification status and category
 - `handle_submit_verification(request_handler, post_data, content_type)`:
@@ -470,9 +542,35 @@ Purpose: command-line quick DB sanity check.
 
 Useful for confirming environment and DB credentials before running full server.
 
-### `Backend/utils/email.py`
+### `Backend/utils/security.py`
 
-Purpose: SMTP utility for OTP delivery.
+Purpose: JWT, rate limiting, input validation, and sanitization utilities.
+
+- `create_jwt_token(user_id, user_type, expires_in_hours=24)`: signs a JWT with `SECRET_KEY` using HS256.
+- `verify_jwt_token(token)`: decodes and verifies JWT; returns `{'error': ...}` on failure.
+- `is_rate_limited(ip_address, max_attempts=5, window_seconds=300)`: per-IP in-memory rate limiter.
+- `validate_email(email)`: regex email format check.
+- `validate_password(password)`: returns a list of unmet password policy requirements.
+- `sanitize_input(input_string, max_length=255)`: strips dangerous characters for XSS prevention.
+- `validate_file_upload(filename, file_data, allowed_extensions, max_file_size)`: validates type, size, double extensions.
+- `generate_csrf_token()` / `verify_csrf_token(token)`: CSRF token helpers.
+
+### `Backend/utils/file_upload.py`
+
+Purpose: secure file upload handling.
+
+- `validate_file_upload(filename, file_data, allowed_extensions, max_file_size)`: full validation — type whitelist, size limit, null bytes, double extensions.
+- `calculate_file_hash(file_data)`: returns SHA-256 hex digest for integrity storage.
+- `sanitize_filename(filename)`: strips path separators and dangerous characters; limits length to 255.
+- `get_safe_file_path(uploads_dir, filename)`: constructs absolute path and verifies it stays within the uploads directory (prevents directory traversal).
+
+### `Backend/middleware/auth_middleware.py`
+
+Purpose: JWT-based request authentication.
+
+- `require_auth(f)`: decorator — extracts `Authorization: Bearer <token>` header, verifies JWT via `verify_jwt_token()`, attaches `request_handler.user_id` and `request_handler.user_type`, and returns `401` if missing or invalid.
+- `verify_auth(request_handler)`: non-blocking version — returns JWT payload or `None` without sending a response.
+- `get_auth_header(request_handler)`: extracts the raw token from the `Authorization` header.
 
 - `send_otp_email(email, otp_code)`:
   - builds HTML email
@@ -486,15 +584,15 @@ Purpose: SMTP utility for OTP delivery.
 
 ### `Backend/utils/otp.py`
 
-Current status: file exists but is empty (placeholder).
+Current status: placeholder (OTP logic is implemented inline in `auth.py`).
 
 ### `Backend/utils/validators.py`
 
-Current status: file exists but is empty (placeholder).
+Current status: placeholder (validation is implemented in `utils/security.py`).
 
 ### `Backend/utils/permissions.py`
 
-Current status: file exists but is empty (placeholder).
+Current status: placeholder.
 
 ### `Backend/models/user.py`
 
@@ -518,7 +616,7 @@ Current status: file exists but is empty (placeholder).
 
 ### `Backend/middleware/auth_middleware.py`
 
-Current status: file exists but is empty (placeholder).
+See `Backend/utils/security.py` and `Backend/middleware/auth_middleware.py` above — fully implemented.
 
 ### `Backend/middleware/role_middleware.py`
 
@@ -532,6 +630,26 @@ Current status: file exists but is empty (placeholder).
 - `Backend/middleware/__init__.py`: empty
 
 These files mark directories as Python packages and can later be used for exports/shared initialization.
+
+## Frontend API Utility — `Frontend/assets/js/utils/api.js`
+
+Purpose: centralised frontend API layer with automatic JWT authentication.
+
+Key functions:
+
+- `setAuthToken(token)` / `getAuthToken()`: store and retrieve JWT from `localStorage`.
+- `setUserInfo(userInfo)` / `getUserInfo()`: store and retrieve user info object.
+- `isAuthenticated()`: returns `true` if a JWT token is present.
+- `clearAuth()`: removes token and user info.
+- `apiGet(endpoint)` / `apiPost(endpoint, body)` / `apiPut` / `apiDelete`: HTTP helpers that automatically attach `Authorization: Bearer <token>` header.
+- `apiPostFormData(endpoint, formData)`: for file uploads — does not set `Content-Type` so browser sets multipart boundary automatically.
+- `login(email, password)` / `verifyOTP(userId, userType, otpCode)` / `register(...)` / `logout()`: auth flow helpers.
+- On `401 Unauthorized` response: automatically clears auth and redirects to login page.
+
+This file must be included **before** any other JS file that makes API calls:
+```html
+<script src="/assets/js/utils/api.js"></script>
+```
 
 ## API Endpoint Map (Current Router)
 
@@ -574,15 +692,24 @@ POST endpoints:
 ## Notes and Known Characteristics
 
 - The backend does not currently use a framework like Flask/FastAPI; routing and parsing are manual.
+- The server runs over **HTTPS on port 8443** using a self-signed certificate. Browsers will show a security warning for local development — this is expected.
 - OTP persistence is in-memory, not database-backed.
+- JWT tokens are stateless and expire after 24 hours.
+- Rate limiting is in-memory per process — server restart resets counters.
 - Several tables are created/altered lazily inside route handlers if missing.
-- The `models`, `middleware`, and some `utils` modules are present but not implemented yet.
+- The `models/` and some `utils/` modules are present but not yet implemented.
+- `SECRET_KEY` in `.env` **must be changed** before any production deployment — generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
+- `ALLOWED_ORIGIN` in `.env` must be updated to the production domain before deployment.
 
 ## Running the Backend
 
-- Use `run.ps1` from workspace root, or run `Backend/app.py` directly.
+- Use `run.ps1` from workspace root with the HTTPS port:
+  ```powershell
+  .\run.ps1 -Port 8443
+  ```
+- Then visit `https://localhost:8443` (accept the self-signed certificate warning).
 - Ensure MySQL is running and the `Better_Space` schema is initialized.
-- Ensure `.env` has DB and email settings for OTP flow.
+- Ensure `.env` has DB credentials, email settings for OTP flow, `SECRET_KEY`, and `ALLOWED_ORIGIN`.
 
 
 

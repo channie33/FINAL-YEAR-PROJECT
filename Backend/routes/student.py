@@ -35,7 +35,7 @@ def get_student_profile(request_handler, user_id):
                 mhp.ProfessionalID,
                 mhp.FullName,
                 mhp.Category,
-                COUNT(DISTINCT sa.AppointmentID) as session_count
+                COUNT(DISTINCT CASE WHEN sa.SessionDate < NOW() THEN sa.AppointmentID END) as session_count
             FROM MentalHealthProfessionals mhp
             LEFT JOIN SessionAppointments sa ON mhp.ProfessionalID = sa.ProfessionalID AND sa.StudentID = %s
             LEFT JOIN Messages m ON mhp.ProfessionalID = m.ProfessionalID AND m.StudentID = %s
@@ -199,17 +199,18 @@ def add_student_review(request_handler, data):
     try:
         cursor = connection.cursor(dictionary=True)
         
-        # Verify that the student has had at least one session with this professional
+        # Verify that the student has at least one completed (past) session with this professional
         cursor.execute("""
             SELECT COUNT(AppointmentID) as session_count
             FROM SessionAppointments
             WHERE StudentID = %s AND ProfessionalID = %s
+              AND SessionDate < NOW()
         """, (student_id, professional_id))
         
         result = cursor.fetchone()
         if not result or result['session_count'] == 0:
             request_handler._set_headers(403, 'application/json')
-            request_handler.wfile.write(json.dumps({"status": "error", "message": "You can only review professionals you have had sessions with"}).encode())
+            request_handler.wfile.write(json.dumps({"status": "error", "message": "You can only rate and review a professional after your session has taken place"}).encode())
             return
         
         # Proceed with insertion

@@ -21,6 +21,7 @@ from .messages import (
 )
 from .sessions import get_slots, book_session
 from .api import test_database
+from config import ALLOWED_ORIGIN
 
 # Frontend directory
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))#to get project root directory
@@ -31,9 +32,16 @@ class RequestHandler(BaseHTTPRequestHandler):
     def _set_headers(self, status=200, content_type='text/html'):
         self.send_response(status)
         self.send_header('Content-type', content_type)
-        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Origin', ALLOWED_ORIGIN)
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        self.send_header('Access-Control-Allow-Credentials', 'true')
+        self.send_header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+        self.send_header('X-Content-Type-Options', 'nosniff')
+        self.send_header('X-Frame-Options', 'SAMEORIGIN')
+        self.send_header('X-XSS-Protection', '1; mode=block')
+        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
+        self.send_header('Referrer-Policy', 'strict-origin-when-cross-origin')
         self.end_headers()
     
     def do_OPTIONS(self):

@@ -37,5 +37,5 @@ if ($Inline) {
     Write-Host "Starting backend in new window from $backendDir on port $Port..."
     $cmd = "$env:PORT=$Port; Set-Location -Path '$backendDir'; & '$venvPython' 'app.py'"
     Start-Process -FilePath 'powershell' -ArgumentList '-NoExit','-Command',$cmd -WindowStyle Normal
-    Write-Host "Backend launched (new window). Visit http://localhost:$Port"
+    Write-Host "Backend launched (new window). Visit https://localhost:$Port"
 }
