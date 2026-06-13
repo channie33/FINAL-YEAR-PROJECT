@@ -1,305 +1,174 @@
-/**
- * API Utilities Reference Guide
- * 
- * All API functions automatically include JWT token in Authorization header
- * All functions return a Promise that resolves to a response object
- */
+# API Utility Reference
 
-// ============= AUTHENTICATION FUNCTIONS =============
+This document describes the shared frontend API utility used by student and professional pages.
 
-/**
- * Login with email and password
- * @param {string} email - User email
- * @param {string} password - User password
- * @returns {Promise} Response with user info
- */
-async function login(email, password) {
-    const response = await apiPost('/api/login', { email, password }, { includeAuth: false });
-    if (response.status === 'success' && response.user) {
-        setUserInfo(response.user);
-    }
-    return response;
+Source file:
+- Frontend/assets/js/utils/api.js
+
+## Purpose
+
+The utility centralizes:
+- JWT token and user info storage
+- fetch request wrappers (GET/POST/PUT/DELETE/FormData)
+- automatic Authorization header injection
+- standard error handling for network and HTTP failures
+
+## Storage Keys
+
+- auth_token: JWT for student/professional authentication
+- user_info: JSON string with user_id and user_type
+
+Note:
+- Admin pages currently use a separate token flow in sessionStorage with key betterspace_admin_token.
+- Admin scripts generally call fetch directly instead of this utility.
+
+## Core Functions
+
+### Token and user helpers
+
+- setAuthToken(token)
+- getAuthToken()
+- setUserInfo(userInfo)
+- getUserInfo()
+- isAuthenticated()
+- clearAuth()
+- logout()
+
+Current logout redirect target in utility:
+- /shared/login.html
+
+### Request helpers
+
+- apiRequest(endpoint, options)
+- apiGet(endpoint, options)
+- apiPost(endpoint, body, options)
+- apiPut(endpoint, body, options)
+- apiDelete(endpoint, options)
+- apiPostFormData(endpoint, formData, options)
+
+Options supported by apiRequest:
+- method: default GET
+- body: object or FormData
+- headers: custom headers object
+- includeAuth: default true
+- isFormData: default false
+
+Behavior:
+- Adds Content-Type: application/json by default
+- Adds Authorization: Bearer <token> when includeAuth is true and token exists
+- Removes Content-Type when isFormData is true
+- On HTTP 401: clears auth and redirects to /shared/login.html
+- On non-OK response: returns error object with status and message
+- On network error: returns error object with network message
+
+## Auth Flow Helpers in Utility
+
+- login(email, password)
+  - Calls POST /api/login with includeAuth false
+  - Stores returned user object into user_info
+
+- verifyOTP(userId, userType, otpCode)
+  - Calls POST /api/verify-otp with includeAuth false
+  - On success stores token into auth_token and user summary in user_info
+
+- register(email, password, userType, firstName, lastName)
+  - Calls POST /api/register with includeAuth false
+
+## Common Backend Endpoints (Current)
+
+The backend router is in Backend/routes/request_handler.py.
+
+Public or pre-auth endpoints:
+- POST /api/register
+- POST /api/login
+- POST /api/admin/login
+- POST /api/verify-otp
+- POST /api/forgot-password
+- POST /api/reset-password
+- GET /api/professionals
+- GET /api/sessions/slots?professional=<id>&date=<YYYY-MM-DD>
+
+Protected student/professional endpoints (Authorization required):
+- GET /api/student/profile
+- GET /api/student/messages
+- GET /api/student/admin-messages
+- GET /api/student/sessions
+- POST /api/student/admin-messages
+- POST /api/student/reviews
+- GET /api/professional/profile
+- GET /api/professional/messages
+- GET /api/professional/admin-messages
+- GET /api/professional/sessions
+- POST /api/professional/admin-messages
+- GET /api/messages
+- POST /api/messages
+- POST /api/sessions
+- POST /api/professional/submit-verification (multipart/form-data)
+- GET /api/user
+
+Protected admin endpoints (Authorization required):
+- GET /api/admin/users
+- GET /api/admin/verifications
+- GET /api/admin/messages
+- POST /api/admin/messages
+- POST /api/admin/verify-professional
+- GET /api/admin/verification-document
+- GET /api/admin/reports/registrations
+- GET /api/admin/reports/sessions
+- GET /api/admin/reports/verification
+- GET /api/admin/reports/feedback
+- GET /api/admin/reports/messaging
+
+## Usage Examples
+
+### Include utility
+
+```html
+<script src="/assets/js/utils/api.js"></script>
+```
+
+### Login and OTP
+
+```javascript
+const loginRes = await login(email, password);
+
+if (loginRes.status === 'success') {
+  const otpRes = await verifyOTP(loginRes.user.user_id, loginRes.user.user_type, otpCode);
 }
+```
 
-/**
- * Verify OTP and get JWT token
- * @param {number} userId - User ID
- * @param {string} userType - 'student', 'professional', or 'admin'
- * @param {string} otpCode - 6-digit OTP code
- * @returns {Promise} Response with JWT token
- */
-async function verifyOTP(userId, userType, otpCode) {
-    const response = await apiPost('/api/verify-otp', 
-        { user_id: userId, user_type: userType, otp_code: otpCode }, 
-        { includeAuth: false }
-    );
-    if (response.status === 'success' && response.token) {
-        setAuthToken(response.token);
-        setUserInfo({ user_id: userId, user_type: userType });
-    }
-    return response;
-}
+### Authenticated GET
 
-/**
- * Register new user
- * @param {string} email - Email address
- * @param {string} password - Password
- * @param {string} userType - 'student' or 'professional'
- * @param {string} firstName - First name
- * @param {string} lastName - Last name
- * @returns {Promise} Response
- */
-async function register(email, password, userType, firstName, lastName) {
-    return apiPost('/api/register', 
-        { email, password, user_type: userType, first_name: firstName, last_name: lastName }, 
-        { includeAuth: false }
-    );
-}
+```javascript
+const me = getUserInfo();
+const res = await apiGet(`/api/student/profile?student_id=${me.user_id}`);
+```
 
-/**
- * Logout and clear authentication
- */
-function logout() {
-    clearAuth();
-    window.location.href = '/shared/login.html';
-}
+### Authenticated POST
 
-// ============= TOKEN MANAGEMENT =============
+```javascript
+await apiPost('/api/messages', {
+  student_id: 1,
+  professional_id: 2,
+  message: 'Hello'
+});
+```
 
-/**
- * Store JWT token in localStorage
- * @param {string} token - JWT token
- */
-function setAuthToken(token) {
-    if (token) {
-        localStorage.setItem(API_CONFIG.tokenStorageKey, token);
-    } else {
-        localStorage.removeItem(API_CONFIG.tokenStorageKey);
-    }
-}
+### FormData upload
 
-/**
- * Retrieve JWT token from localStorage
- * @returns {string|null} JWT token or null if not authenticated
- */
-function getAuthToken() {
-    return localStorage.getItem(API_CONFIG.tokenStorageKey);
-}
+```javascript
+const form = new FormData();
+form.append('file', fileInput.files[0]);
+form.append('user_id', getUserInfo().user_id);
+form.append('specialization', 'Clinical Psychology');
 
-/**
- * Check if user is authenticated
- * @returns {boolean} True if token exists
- */
-function isAuthenticated() {
-    return !!getAuthToken();
-}
+const uploadRes = await apiPostFormData('/api/professional/submit-verification', form);
+```
 
-// ============= USER INFO MANAGEMENT =============
+## Important Notes
 
-/**
- * Store user information in localStorage
- * @param {Object} userInfo - User information object
- */
-function setUserInfo(userInfo) {
-    if (userInfo) {
-        localStorage.setItem(API_CONFIG.userStorageKey, JSON.stringify(userInfo));
-    } else {
-        localStorage.removeItem(API_CONFIG.userStorageKey);
-    }
-}
-
-/**
- * Retrieve user information from localStorage
- * @returns {Object|null} User information or null
- */
-function getUserInfo() {
-    const userInfo = localStorage.getItem(API_CONFIG.userStorageKey);
-    return userInfo ? JSON.parse(userInfo) : null;
-}
-
-/**
- * Clear all authentication data
- */
-function clearAuth() {
-    setAuthToken(null);
-    setUserInfo(null);
-}
-
-// ============= HTTP REQUEST FUNCTIONS =============
-
-/**
- * GET request (automatically includes JWT token)
- * @param {string} endpoint - API endpoint path
- * @param {Object} options - Additional options
- * @returns {Promise} Response object
- * 
- * @example
- * const data = await apiGet('/api/student/profile?student_id=1');
- */
-function apiGet(endpoint, options = {}) {
-    return apiRequest(endpoint, { method: 'GET', ...options });
-}
-
-/**
- * POST request with JSON body (automatically includes JWT token)
- * @param {string} endpoint - API endpoint path
- * @param {Object} body - Request body
- * @param {Object} options - Additional options
- * @returns {Promise} Response object
- * 
- * @example
- * const response = await apiPost('/api/messages', { 
- *     student_id: 1, 
- *     professional_id: 2, 
- *     message: 'Hello' 
- * });
- */
-function apiPost(endpoint, body, options = {}) {
-    return apiRequest(endpoint, { method: 'POST', body, ...options });
-}
-
-/**
- * PUT request with JSON body (automatically includes JWT token)
- * @param {string} endpoint - API endpoint path
- * @param {Object} body - Request body
- * @param {Object} options - Additional options
- * @returns {Promise} Response object
- */
-function apiPut(endpoint, body, options = {}) {
-    return apiRequest(endpoint, { method: 'PUT', body, ...options });
-}
-
-/**
- * DELETE request (automatically includes JWT token)
- * @param {string} endpoint - API endpoint path
- * @param {Object} options - Additional options
- * @returns {Promise} Response object
- */
-function apiDelete(endpoint, options = {}) {
-    return apiRequest(endpoint, { method: 'DELETE', ...options });
-}
-
-/**
- * POST request with FormData (for file uploads, automatically includes JWT token)
- * @param {string} endpoint - API endpoint path
- * @param {FormData} formData - FormData object with files
- * @param {Object} options - Additional options
- * @returns {Promise} Response object
- * 
- * @example
- * const formData = new FormData();
- * formData.append('file', fileInput.files[0]);
- * formData.append('user_id', userId);
- * formData.append('specialization', 'Mental Health');
- * 
- * const response = await apiPostFormData('/api/submit-verification', formData);
- */
-function apiPostFormData(endpoint, formData, options = {}) {
-    return apiRequest(endpoint, { method: 'POST', body: formData, isFormData: true, ...options });
-}
-
-// ============= RESPONSE HANDLING =============
-
-/**
- * All API functions return response objects with this structure:
- * {
- *     status: 'success' or 'error',
- *     message: 'Human readable message',
- *     data: { ... } // Additional data if applicable
- * }
- * 
- * On 401 Unauthorized: Automatically clears auth and redirects to login
- * On network error: Returns error object with message
- */
-
-// ============= USAGE EXAMPLES =============
-
-/**
- * Example 1: Login Flow
- */
-async function exampleLogin() {
-    const response = await login('user@example.com', 'Password123!');
-    if (response.status === 'success') {
-        console.log('Login successful');
-    } else {
-        console.error('Login failed:', response.message);
-    }
-}
-
-/**
- * Example 2: Get Student Profile (authenticated)
- */
-async function exampleGetProfile() {
-    const userId = getUserInfo().user_id;
-    const response = await apiGet(`/api/student/profile?student_id=${userId}`);
-    if (response.status === 'success') {
-        console.log('Profile:', response.data);
-    }
-}
-
-/**
- * Example 3: Send Message (authenticated)
- */
-async function exampleSendMessage() {
-    const response = await apiPost('/api/messages', {
-        student_id: 1,
-        professional_id: 2,
-        message: 'Hello, how can you help me?'
-    });
-    
-    if (response.status === 'success') {
-        console.log('Message sent');
-    } else {
-        console.error('Failed to send message:', response.message);
-    }
-}
-
-/**
- * Example 4: File Upload (authenticated)
- */
-async function exampleFileUpload(fileInput) {
-    const formData = new FormData();
-    formData.append('file', fileInput.files[0]);
-    formData.append('user_id', getUserInfo().user_id);
-    formData.append('specialization', 'Clinical Psychology');
-    
-    const response = await apiPostFormData('/api/submit-verification', formData);
-    
-    if (response.status === 'success') {
-        console.log('File uploaded successfully');
-    } else {
-        console.error('Upload failed:', response.message);
-    }
-}
-
-/**
- * Example 5: Check Authentication
- */
-function exampleCheckAuth() {
-    if (isAuthenticated()) {
-        const user = getUserInfo();
-        console.log('Logged in as:', user.email);
-    } else {
-        console.log('Not authenticated');
-        window.location.href = '/assets/pages/shared/login.html';
-    }
-}
-
-/**
- * Example 6: Logout
- */
-function exampleLogout() {
-    logout(); // Clears auth and redirects to login page
-}
-
-// ============= IMPORTANT NOTES =============
-
-/*
-1. All functions automatically include JWT token in Authorization header
-2. All functions automatically handle 401 (Unauthorized) by redirecting to login
-3. Include <script src="/assets/js/utils/api.js"></script> before using these functions
-4. Never store sensitive data in localStorage except the JWT token
-5. JWT token expires after 24 hours - users must login again
-6. For file uploads, use FormData and apiPostFormData()
-7. For non-authenticated endpoints, pass { includeAuth: false } option
-*/
+1. This utility is intended for student/professional token flow.
+2. Admin token handling is separate in admin scripts.
+3. Do not trust local user_info for authorization decisions; backend JWT checks are the source of truth.
+4. When endpoint does not require auth, pass includeAuth: false.
+5. Keep endpoint paths synchronized with Backend/routes/request_handler.py after route changes.

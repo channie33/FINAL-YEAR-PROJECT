@@ -13,6 +13,17 @@ if (!checkAdminAuth()) {
     throw new Error("Not authenticated");
 }
 
+document.addEventListener('DOMContentLoaded', function () {
+    const logoutBtn = document.querySelector('.sidebar-item.logout');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            sessionStorage.removeItem("betterspace_admin_token");
+            window.location.href = "/assets/pages/shared/index.html";
+        });
+    }
+});
+
 // CSV download helper
 function downloadTableAsCSV(tableId, filename) {
     const table = document.getElementById(tableId);
