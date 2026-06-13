@@ -4,6 +4,14 @@ let currentChatStudentId = null;
 let currentChatStudentName = '';
 let isAdminChat = false;
 
+function authHeaders(extraHeaders = {}) {
+    const token = localStorage.getItem('auth_token');
+    return {
+        'Authorization': 'Bearer ' + token,
+        ...extraHeaders
+    };
+}
+
 // Global function for opening chat (called from onclick in HTML)
 function openChat(studentId, studentName) {
     isAdminChat = false;
@@ -36,7 +44,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Load conversations for professional (made global so it can be called after sending)
     window.loadMessages = async function() {
         try {
-            const response = await fetch(`/api/professional/messages?user_id=${userId}`);
+            const response = await fetch(`/api/professional/messages?user_id=${userId}`, {
+                headers: authHeaders()
+            });
             const data = await response.json();
             
             if (!response.ok || data.status !== 'success') {
@@ -134,7 +144,9 @@ async function loadChatMessages() {
     }
 
     try {
-        const response = await fetch(`/api/messages?student_id=${currentChatStudentId}&professional_id=${currentProfessionalId}`);
+        const response = await fetch(`/api/messages?student_id=${currentChatStudentId}&professional_id=${currentProfessionalId}`, {
+            headers: authHeaders()
+        });
         const data = await response.json();
         if (response.ok && data.status === 'success') {
             renderChatMessages(data.data || []);
@@ -186,7 +198,7 @@ async function sendChatMessage() {
         try {
             const response = await fetch('/api/messages', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     student_id: currentChatStudentId,
                     professional_id: currentProfessionalId,
@@ -217,7 +229,9 @@ async function loadAdminMessages() {
     }
 
     try {
-        const response = await fetch(`/api/professional/admin-messages?user_id=${currentProfessionalId}&admin_username=${encodeURIComponent(ADMIN_USERNAME)}`);
+        const response = await fetch(`/api/professional/admin-messages?user_id=${currentProfessionalId}&admin_username=${encodeURIComponent(ADMIN_USERNAME)}`, {
+            headers: authHeaders()
+        });
         const data = await response.json();
         if (response.ok && data.status === 'success') {
             renderAdminMessages(data.data.messages || []);
@@ -243,7 +257,7 @@ async function sendAdminMessage(messageText) {
     try {
         const response = await fetch('/api/professional/admin-messages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({
                 professional_id: currentProfessionalId,
                 admin_username: ADMIN_USERNAME,

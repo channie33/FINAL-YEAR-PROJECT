@@ -1,6 +1,16 @@
-// Auth guard — redirect to login if not authenticated
-if (sessionStorage.getItem("betterspace_admin") !== "true") {
-    window.location.href = "login.html";
+// Robust auth check with redirect on unauthorized
+function checkAdminAuth() {
+    var adminToken = sessionStorage.getItem("betterspace_admin_token");
+    if (!adminToken) {
+        window.location.href = "login.html";
+        return false;
+    }
+    return true;
+}
+
+// Auth guard on page load
+if (!checkAdminAuth()) {
+    throw new Error("Not authenticated");
 }
 
 const ADMIN_USERNAME = 'admin';
@@ -57,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', function (e) {
             e.preventDefault();
-            sessionStorage.removeItem("betterspace_admin");
+            sessionStorage.removeItem("betterspace_admin_token");
             window.location.href = "/assets/pages/shared/index.html";
         });
     }
@@ -65,8 +75,19 @@ document.addEventListener('DOMContentLoaded', async function () {
 
 async function loadConversations() {
     try {
-        const response = await fetch(`/api/admin/messages?admin_username=${encodeURIComponent(ADMIN_USERNAME)}&limit=100`);
+        const response = await fetch(`/api/admin/messages?admin_username=${encodeURIComponent(ADMIN_USERNAME)}&limit=100`, {
+            headers: {
+                'Authorization': 'Bearer ' + sessionStorage.getItem("betterspace_admin_token")
+            }
+        });
         const data = await response.json();
+        
+        // If unauthorized, redirect to login
+        if (response.status === 401 || response.status === 403) {
+            sessionStorage.removeItem("betterspace_admin_token");
+            window.location.href = "login.html";
+            return;
+        }
         
         if (!response.ok || data.status !== 'success') {
             throw new Error(data.message || 'Failed to load conversations');
@@ -193,7 +214,10 @@ async function sendChatMessage() {
     try {
         const response = await fetch('/api/admin/messages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + sessionStorage.getItem("betterspace_admin_token")
+            },
             body: JSON.stringify({
                 admin_username: ADMIN_USERNAME,
                 target_type: currentChatType,

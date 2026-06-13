@@ -2,11 +2,21 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userId = user.id || user.user_id;
+    const authToken = localStorage.getItem('auth_token');
+
+    function authHeaders(extraHeaders = {}) {
+        return {
+            'Authorization': 'Bearer ' + authToken,
+            ...extraHeaders
+        };
+    }
 
     // Load sessions/appointments for professional
     async function loadSessions() {
         try {
-            const response = await fetch(`/api/professional/sessions?user_id=${userId}`);
+            const response = await fetch(`/api/professional/sessions?user_id=${userId}`, {
+                headers: authHeaders()
+            });
             const data = await response.json();
             
             if (!response.ok || data.status !== 'success') {
@@ -92,6 +102,7 @@ function messageStudent(studentId, studentName) {
     // Get current professional ID from localStorage
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const professionalId = user.id || user.user_id;
+    const authToken = localStorage.getItem('auth_token');
     
     if (!professionalId) {
         alert('Please log in first');
@@ -101,7 +112,10 @@ function messageStudent(studentId, studentName) {
     // Send initial message to open conversation
     fetch('/api/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + authToken
+        },
         body: JSON.stringify({
             student_id: studentId,
             professional_id: professionalId,

@@ -4,6 +4,14 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Get user info from localStorage
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userId = user.id || user.user_id;
+    const authToken = localStorage.getItem('auth_token');
+
+    function authHeaders(extraHeaders = {}) {
+        return {
+            'Authorization': 'Bearer ' + authToken,
+            ...extraHeaders
+        };
+    }
     // Debug output
     console.log('[DEBUG] localStorage user:', user);
     console.log('[DEBUG] userId used for API:', userId);
@@ -26,7 +34,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Fetch and display student profile
     async function loadStudentProfile() {
         try {
-            const response = await fetch(`/api/student/profile?student_id=${userId}`);
+            const response = await fetch(`/api/student/profile?student_id=${userId}`, {
+                headers: authHeaders()
+            });
             const data = await response.json();
             // Debug output
             console.log('[DEBUG] /api/student/profile response:', data);
@@ -149,7 +159,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         try {
             const response = await fetch('/api/student/reviews', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     student_id: userId,
                     professional_id: professionalId,

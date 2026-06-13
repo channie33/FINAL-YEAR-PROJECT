@@ -24,9 +24,16 @@ document.addEventListener('DOMContentLoaded', async function () {
     var professionals = [];
 
     var userId = getLoggedInUserId();
+    var authToken = localStorage.getItem('auth_token');
     if (!userId) {
         window.location.href = '/assets/pages/shared/login.html';
         return;
+    }
+
+    function authHeaders(extraHeaders) {
+        return Object.assign({
+            'Authorization': 'Bearer ' + authToken
+        }, extraHeaders || {});
     }
 
     /* Render existing sessions */
@@ -74,7 +81,9 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     async function fetchSessions(userId) {
         try {
-            var res = await fetch('/api/student/sessions?user_id=' + userId);
+            var res = await fetch('/api/student/sessions?user_id=' + userId, {
+                headers: authHeaders()
+            });
             if (res.ok) {
                 var data = await res.json();
                 if (data.status === 'success' && data.data) return data.data;
@@ -85,7 +94,9 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     async function fetchProfessionals() {
         try {
-            var res = await fetch('/api/student/profile?user_id=' + userId);
+            var res = await fetch('/api/student/profile?user_id=' + userId, {
+                headers: authHeaders()
+            });
             if (res.ok) {
                 var data = await res.json();
                 if (data.status === 'success' && data.data && data.data.professionals && data.data.professionals.length > 0) {
@@ -291,7 +302,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             var res = await fetch('/api/sessions', {
                 method: 'POST',
                 credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
@@ -346,6 +357,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 function messageProfessional(professionalId, professionalName) {
     var user = JSON.parse(localStorage.getItem('user') || '{}');
     var studentId = user.user_id || user.id;
+    var authToken = localStorage.getItem('auth_token');
     
     if (!studentId) {
         alert('Please log in first');
@@ -356,7 +368,10 @@ function messageProfessional(professionalId, professionalName) {
     // Send initial message to open conversation
     fetch('/api/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + authToken
+        },
         body: JSON.stringify({
             student_id: studentId,
             professional_id: professionalId,

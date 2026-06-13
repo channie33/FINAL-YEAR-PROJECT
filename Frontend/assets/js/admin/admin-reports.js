@@ -1,3 +1,18 @@
+// Robust auth check with redirect on unauthorized
+function checkAdminAuth() {
+    var adminToken = sessionStorage.getItem("betterspace_admin_token");
+    if (!adminToken) {
+        window.location.href = "login.html";
+        return false;
+    }
+    return true;
+}
+
+// Auth guard on page load
+if (!checkAdminAuth()) {
+    throw new Error("Not authenticated");
+}
+
 // CSV download helper
 function downloadTableAsCSV(tableId, filename) {
     const table = document.getElementById(tableId);
@@ -54,9 +69,25 @@ function populateTable(tableId, rows, columns) {
     });
 }
 
+// Helper function for authenticated fetch with auth check
+function authenticatedFetch(url) {
+    return fetch(url, {
+        headers: {
+            'Authorization': 'Bearer ' + sessionStorage.getItem("betterspace_admin_token")
+        }
+    }).then(r => {
+        // Check for unauthorized/forbidden
+        if (r.status === 401 || r.status === 403) {
+            sessionStorage.removeItem("betterspace_admin_token");
+            window.location.href = "login.html";
+            throw new Error('Unauthorized');
+        }
+        return r.json();
+    });
+}
+
 // Load Report 1: User Registrations
-fetch('/api/admin/reports/registrations')
-    .then(r => r.json())
+authenticatedFetch('/api/admin/reports/registrations')
     .then(data => {
         if (data.status === 'success') {
             populateTable('table-registrations', data.data, ['month', 'user_type', 'count']);
@@ -67,8 +98,7 @@ fetch('/api/admin/reports/registrations')
     .catch(() => showError('Error loading registrations report.'));
 
 // Load Report 2: Sessions
-fetch('/api/admin/reports/sessions')
-    .then(r => r.json())
+authenticatedFetch('/api/admin/reports/sessions')
     .then(data => {
         if (data.status === 'success') {
             populateTable('table-sessions-professional', data.by_professional, ['professional_name', 'Category', 'total_sessions']);
@@ -80,8 +110,7 @@ fetch('/api/admin/reports/sessions')
     .catch(() => showError('Error loading sessions report.'));
 
 // Load Report 3: Verification
-fetch('/api/admin/reports/verification')
-    .then(r => r.json())
+authenticatedFetch('/api/admin/reports/verification')
     .then(data => {
         if (data.status === 'success') {
             populateTable('table-verification-status', data.by_status, ['VerificationStatus', 'count']);
@@ -93,8 +122,7 @@ fetch('/api/admin/reports/verification')
     .catch(() => showError('Error loading verification report.'));
 
 // Load Report 4: Feedback
-fetch('/api/admin/reports/feedback')
-    .then(r => r.json())
+authenticatedFetch('/api/admin/reports/feedback')
     .then(data => {
         if (data.status === 'success') {
             populateTable('table-feedback', data.data, ['professional_name', 'Category', 'avg_rating', 'total_reviews']);
@@ -105,8 +133,7 @@ fetch('/api/admin/reports/feedback')
     .catch(() => showError('Error loading feedback report.'));
 
 // Load Report 5: Messaging
-fetch('/api/admin/reports/messaging')
-    .then(r => r.json())
+authenticatedFetch('/api/admin/reports/messaging')
     .then(data => {
         if (data.status === 'success') {
             populateTable('table-messaging', data.data, ['month', 'total_messages', 'student_messages', 'professional_messages']);

@@ -1,7 +1,18 @@
 
-// Auth guard — redirect to login if not authenticated
-if (sessionStorage.getItem("betterspace_admin") !== "true") {
-    window.location.href = "login.html";
+
+// Robust auth check with redirect on unauthorized
+function checkAdminAuth() {
+    var adminToken = sessionStorage.getItem("betterspace_admin_token");
+    if (!adminToken) {
+        window.location.href = "login.html";
+        return false;
+    }
+    return true;
+}
+
+// Auth guard on page load
+if (!checkAdminAuth()) {
+    throw new Error("Not authenticated");
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -11,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Logout button
     document.querySelector('.sidebar-item.logout').addEventListener('click', function (e) {
         e.preventDefault();
-        sessionStorage.removeItem("betterspace_admin");
+        sessionStorage.removeItem("betterspace_admin_token");
         window.location.href = "/assets/pages/shared/index.html";
     });
 
@@ -20,8 +31,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
 async function loadVerificationRequests() {
     try {
-        const response = await fetch('/api/admin/verifications');
+        const response = await fetch('/api/admin/verifications', {
+            headers: {
+                'Authorization': 'Bearer ' + sessionStorage.getItem("betterspace_admin_token")
+            }
+        });
         const data = await response.json();
+
+        // If unauthorized, redirect to login
+        if (response.status === 401 || response.status === 403) {
+            sessionStorage.removeItem("betterspace_admin_token");
+            window.location.href = "login.html";
+            return;
+        }
 
         if (response.ok) {
             displayVerifications(data.pending_verifications);
@@ -72,7 +94,23 @@ function displayVerifications(verifications) {
             documentButton.addEventListener('click', function () {
                 const profId = this.getAttribute('data-prof-id');
                 const url = `/api/admin/verification-document?professional_id=${encodeURIComponent(profId)}`;
-                window.open(url, '_blank', 'noopener');
+                const token = sessionStorage.getItem("betterspace_admin_token");
+                // For file download, we need to use a different approach
+                fetch(url, {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                })
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'document';
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(err => console.error('Error downloading document:', err));
             });
         }
 
@@ -96,6 +134,7 @@ async function verifyProfessional(profId, status) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + sessionStorage.getItem("betterspace_admin_token")
             },
             body: JSON.stringify({
                 professional_id: profId,
@@ -116,4 +155,5 @@ async function verifyProfessional(profId, status) {
         alert('Error updating verification status');
     }
 }
+
 

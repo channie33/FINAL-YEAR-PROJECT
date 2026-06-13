@@ -1,11 +1,8 @@
  
 (function () {
 
-    var ADMIN_USER = "admin";
-    var ADMIN_PASS = "admin123";
-
     // If already logged in, skip straight to users page
-    if (sessionStorage.getItem("betterspace_admin") === "true") {
+    if (sessionStorage.getItem("betterspace_admin_token")) {
         window.location.href = "/assets/pages/admin/users.html";
     }
 
@@ -20,7 +17,7 @@
             errorMsg.textContent = '';
         }
 
-        function attemptLogin() {
+        async function attemptLogin() {
             clearError();
 
             var user = usernameInput.value.trim();
@@ -31,11 +28,32 @@
                 return;
             }
 
-            if (user === ADMIN_USER && pass === ADMIN_PASS) {
-                sessionStorage.setItem("betterspace_admin", "true");
-                window.location.href = "/assets/pages/admin/users.html";
-            } else {
-                errorMsg.textContent = 'Invalid username or password.';
+            try {
+                const response = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: user,
+                        password: pass
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.token) {
+                    // Store the JWT token in sessionStorage
+                    sessionStorage.setItem("betterspace_admin_token", data.token);
+                    window.location.href = "/assets/pages/admin/users.html";
+                } else {
+                    errorMsg.textContent = data.error || 'Invalid username or password.';
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                errorMsg.textContent = 'Login failed. Please try again.';
                 passwordInput.value = '';
                 passwordInput.focus();
             }

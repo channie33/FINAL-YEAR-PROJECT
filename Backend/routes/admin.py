@@ -1,15 +1,127 @@
 import json
 import mimetypes
 import os
+import bcrypt
 from config import get_db_connection
+from utils.security import create_jwt_token, verify_jwt_token
 
 
 def _json_default(value):
     """Fallback serializer for non-JSON types (e.g., datetime)."""
     return str(value)
 
+def admin_login(request_handler, data):
+    """Handle admin login and return JWT token"""
+    
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+    
+    if not username or not password:
+        request_handler._set_headers(400, 'application/json')
+        response = json.dumps({"status": "error", "error": "Missing username or password"})
+        request_handler.wfile.write(response.encode())
+        return
+    
+    connection = get_db_connection()
+    if not connection:
+        request_handler._set_headers(500, 'application/json')
+        response = json.dumps({"status": "error", "error": "Database connection failed"})
+        request_handler.wfile.write(response.encode())
+        return
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute(
+            "SELECT AdminID, Username, Password FROM Admins WHERE Username = %s",
+            (username,)
+        )
+        admin = cursor.fetchone()
+
+        if not admin:
+            request_handler._set_headers(401, 'application/json')
+            response = json.dumps({"status": "error", "error": "Invalid username or password"})
+            request_handler.wfile.write(response.encode())
+            return
+
+        stored_password = admin.get('Password') or ''
+        is_valid_password = False
+
+        # Support bcrypt hashes and legacy plaintext passwords.
+        if stored_password.startswith('$2a$') or stored_password.startswith('$2b$') or stored_password.startswith('$2y$'):
+            is_valid_password = bcrypt.checkpw(password.encode('utf-8'), stored_password.encode('utf-8'))
+        else:
+            is_valid_password = (password == stored_password)
+            if is_valid_password:
+                new_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                cursor.execute("UPDATE Admins SET Password = %s WHERE AdminID = %s", (new_hash, admin['AdminID']))
+                connection.commit()
+
+        if not is_valid_password:
+            request_handler._set_headers(401, 'application/json')
+            response = json.dumps({"status": "error", "error": "Invalid username or password"})
+            request_handler.wfile.write(response.encode())
+            return
+
+        # Generate JWT token
+        token = create_jwt_token(admin['AdminID'], 'admin', expires_in_hours=24)
+    finally:
+        cursor.close()
+        connection.close()
+    
+    if not token:
+        request_handler._set_headers(500, 'application/json')
+        response = json.dumps({"status": "error", "error": "Failed to generate token"})
+        request_handler.wfile.write(response.encode())
+        return
+    
+    request_handler._set_headers(200, 'application/json')
+    response = json.dumps({
+        "status": "success",
+        "token": token,
+        "admin_id": admin['AdminID'],
+        "username": admin['Username'],
+        "message": "Login successful"
+    })
+    request_handler.wfile.write(response.encode())
+
+def verify_admin_token(request_handler):
+    """Extract and verify admin JWT token from Authorization header"""
+    
+    auth_header = request_handler.headers.get('Authorization', '')
+    
+    if not auth_header or not auth_header.startswith('Bearer '):
+        request_handler._set_headers(401, 'application/json')
+        response = json.dumps({"status": "error", "error": "Missing or invalid Authorization header"})
+        request_handler.wfile.write(response.encode())
+        return None
+    
+    token = auth_header.split(' ')[1]
+    payload = verify_jwt_token(token)
+    
+    if 'error' in payload:
+        request_handler._set_headers(401, 'application/json')
+        response = json.dumps({"status": "error", "error": payload['error']})
+        request_handler.wfile.write(response.encode())
+        return None
+    
+    # Verify it's an admin token
+    if payload.get('user_type') != 'admin':
+        request_handler._set_headers(403, 'application/json')
+        response = json.dumps({"status": "error", "error": "Insufficient permissions"})
+        request_handler.wfile.write(response.encode())
+        return None
+    
+    return payload
+
+
 def get_pending_verifications(request_handler):
     """Get all professionals pending verification"""
+    
+    # Verify admin token
+    admin_payload = verify_admin_token(request_handler)
+    if not admin_payload:
+        return
     
     connection = get_db_connection()
     if not connection:
@@ -94,6 +206,12 @@ def get_pending_verifications(request_handler):
 
 def get_verification_document(request_handler, professional_id):
     """Serve the latest verification document for a professional"""
+    
+    # Verify admin token
+    admin_payload = verify_admin_token(request_handler)
+    if not admin_payload:
+        return
+    
     if not professional_id:
         request_handler._set_headers(400, 'application/json')
         response = json.dumps({"status": "error", "error": "Missing professional_id"}, default=_json_default)
@@ -193,6 +311,11 @@ def get_verification_document(request_handler, professional_id):
 def verify_professional(request_handler, data):
     """Admin approves or rejects professional verification"""
     
+    # Verify admin token
+    admin_payload = verify_admin_token(request_handler)
+    if not admin_payload:
+        return
+    
     #to extract data from the request
     professional_id = data.get('professional_id')
     status = data.get('status')  #expected 'approved' or 'rejected'
@@ -242,6 +365,12 @@ def verify_professional(request_handler, data):
 
 def get_report_user_registrations(request_handler):
     """Report: student and professional registrations grouped by month"""
+    
+    # Verify admin token
+    admin_payload = verify_admin_token(request_handler)
+    if not admin_payload:
+        return
+    
     connection = get_db_connection()
     if not connection:
         request_handler._set_headers(500, 'application/json')
@@ -272,6 +401,12 @@ def get_report_user_registrations(request_handler):
 
 def get_report_sessions(request_handler):
     """Report: session appointments per professional and per category"""
+    
+    # Verify admin token
+    admin_payload = verify_admin_token(request_handler)
+    if not admin_payload:
+        return
+    
     connection = get_db_connection()
     if not connection:
         request_handler._set_headers(500, 'application/json')
@@ -309,6 +444,12 @@ def get_report_sessions(request_handler):
 
 def get_report_verification(request_handler):
     """Report: professional verification status breakdown"""
+    
+    # Verify admin token
+    admin_payload = verify_admin_token(request_handler)
+    if not admin_payload:
+        return
+    
     connection = get_db_connection()
     if not connection:
         request_handler._set_headers(500, 'application/json')
@@ -343,6 +484,12 @@ def get_report_verification(request_handler):
 
 def get_report_feedback(request_handler):
     """Report: average feedback ratings per professional"""
+    
+    # Verify admin token
+    admin_payload = verify_admin_token(request_handler)
+    if not admin_payload:
+        return
+    
     connection = get_db_connection()
     if not connection:
         request_handler._set_headers(500, 'application/json')
@@ -372,6 +519,12 @@ def get_report_feedback(request_handler):
 
 def get_report_messaging(request_handler):
     """Report: messaging activity between students and professionals"""
+    
+    # Verify admin token
+    admin_payload = verify_admin_token(request_handler)
+    if not admin_payload:
+        return
+    
     connection = get_db_connection()
     if not connection:
         request_handler._set_headers(500, 'application/json')
@@ -401,6 +554,11 @@ def get_report_messaging(request_handler):
 
 def get_all_users(request_handler):
     """Get all users for admin dashboard"""
+    
+    # Verify admin token
+    admin_payload = verify_admin_token(request_handler)
+    if not admin_payload:
+        return
     
     connection = get_db_connection()
     if not connection:

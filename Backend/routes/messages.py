@@ -1,10 +1,40 @@
 import json
 from config import get_db_connection
+from utils.security import verify_jwt_token
 
 
 def _json_default(value):
 	"""Fallback serializer for non-JSON types (e.g., datetime)."""
 	return str(value)
+
+def _verify_admin_token(request_handler):
+	"""Verify admin JWT token from Authorization header"""
+	auth_header = request_handler.headers.get('Authorization', '')
+	
+	if not auth_header or not auth_header.startswith('Bearer '):
+		request_handler._set_headers(401, 'application/json')
+		response = json.dumps({"status": "error", "error": "Missing or invalid Authorization header"})
+		request_handler.wfile.write(response.encode())
+		return None
+	
+	token = auth_header.split(' ')[1]
+	payload = verify_jwt_token(token)
+	
+	if 'error' in payload:
+		request_handler._set_headers(401, 'application/json')
+		response = json.dumps({"status": "error", "error": payload['error']})
+		request_handler.wfile.write(response.encode())
+		return None
+	
+	# Verify it's an admin token
+	if payload.get('user_type') != 'admin':
+		request_handler._set_headers(403, 'application/json')
+		response = json.dumps({"status": "error", "error": "Insufficient permissions"})
+		request_handler.wfile.write(response.encode())
+		return None
+	
+	return payload
+
 
 
 def _ensure_admin_schema(cursor):
@@ -40,7 +70,7 @@ def _ensure_admin_messages_table(cursor):
 	""")
 
 
-def _get_or_create_admin_id(cursor, admin_username):
+def _get_admin_id(cursor, admin_username):
 	_ensure_admin_schema(cursor)
 	cursor.execute(
 		"SELECT AdminID FROM Admins WHERE Username = %s",
@@ -49,14 +79,7 @@ def _get_or_create_admin_id(cursor, admin_username):
 	row = cursor.fetchone()
 	if row:
 		return row.get('AdminID') if isinstance(row, dict) else row[0]
-
-	default_email = f"{admin_username}@local"
-	default_password = "admin123"
-	cursor.execute(
-		"INSERT INTO Admins (Username, Email, Password) VALUES (%s, %s, %s)",
-		(admin_username, default_email, default_password)
-	)
-	return cursor.lastrowid
+	return None
 
 
 def get_student_admin_messages(request_handler, student_id, admin_username):
@@ -69,7 +92,11 @@ def get_student_admin_messages(request_handler, student_id, admin_username):
 	try:
 		cursor = connection.cursor(dictionary=True)
 		_ensure_admin_messages_table(cursor)
-		admin_id = _get_or_create_admin_id(cursor, admin_username)
+		admin_id = _get_admin_id(cursor, admin_username)
+		if not admin_id:
+			request_handler._set_headers(404, 'application/json')
+			request_handler.wfile.write(json.dumps({"status": "error", "message": "Admin not found"}).encode())
+			return
 
 		cursor.execute("""
 			SELECT MessageText, SentAt, Sender
@@ -108,7 +135,11 @@ def get_professional_admin_messages(request_handler, professional_id, admin_user
 	try:
 		cursor = connection.cursor(dictionary=True)
 		_ensure_admin_messages_table(cursor)
-		admin_id = _get_or_create_admin_id(cursor, admin_username)
+		admin_id = _get_admin_id(cursor, admin_username)
+		if not admin_id:
+			request_handler._set_headers(404, 'application/json')
+			request_handler.wfile.write(json.dumps({"status": "error", "message": "Admin not found"}).encode())
+			return
 
 		cursor.execute("""
 			SELECT MessageText, SentAt, Sender
@@ -138,6 +169,11 @@ def get_professional_admin_messages(request_handler, professional_id, admin_user
 
 
 def get_admin_messages(request_handler, admin_username, limit=50):
+	# Verify admin token
+	admin_payload = _verify_admin_token(request_handler)
+	if not admin_payload:
+		return
+	
 	connection = get_db_connection()
 	if not connection:
 		request_handler._set_headers(500, 'application/json')
@@ -147,7 +183,13 @@ def get_admin_messages(request_handler, admin_username, limit=50):
 	try:
 		cursor = connection.cursor(dictionary=True)
 		_ensure_admin_messages_table(cursor)
-		admin_id = _get_or_create_admin_id(cursor, admin_username)
+		admin_id = admin_payload.get('user_id')
+		try:
+			admin_id = int(admin_id)
+		except (TypeError, ValueError):
+			request_handler._set_headers(401, 'application/json')
+			request_handler.wfile.write(json.dumps({"status": "error", "message": "Invalid admin token payload"}).encode())
+			return
 
 		cursor.execute("""
 			SELECT
@@ -187,7 +229,11 @@ def get_admin_messages(request_handler, admin_username, limit=50):
 
 
 def send_admin_message(request_handler, data):
-	admin_username = data.get('admin_username') or 'admin'
+	# Verify admin token
+	admin_payload = _verify_admin_token(request_handler)
+	if not admin_payload:
+		return
+	
 	target_type = data.get('target_type')
 	target_id = data.get('target_id')
 	message_text = data.get('message_text')
@@ -206,7 +252,13 @@ def send_admin_message(request_handler, data):
 	try:
 		cursor = connection.cursor(dictionary=True)
 		_ensure_admin_messages_table(cursor)
-		admin_id = _get_or_create_admin_id(cursor, admin_username)
+		admin_id = admin_payload.get('user_id')
+		try:
+			admin_id = int(admin_id)
+		except (TypeError, ValueError):
+			request_handler._set_headers(401, 'application/json')
+			request_handler.wfile.write(json.dumps({"status": "error", "message": "Invalid admin token payload"}).encode())
+			return
 
 		if target_type == 'student':
 			cursor.execute("""
@@ -254,7 +306,11 @@ def send_student_admin_message(request_handler, data):
 	try:
 		cursor = connection.cursor(dictionary=True)
 		_ensure_admin_messages_table(cursor)
-		admin_id = _get_or_create_admin_id(cursor, admin_username)
+		admin_id = _get_admin_id(cursor, admin_username)
+		if not admin_id:
+			request_handler._set_headers(404, 'application/json')
+			request_handler.wfile.write(json.dumps({"status": "error", "message": "Admin not found"}).encode())
+			return
 
 		cursor.execute("""
 			INSERT INTO AdminMessages (AdminID, StudentID, MessageText, Sender)
@@ -292,7 +348,11 @@ def send_professional_admin_message(request_handler, data):
 	try:
 		cursor = connection.cursor(dictionary=True)
 		_ensure_admin_messages_table(cursor)
-		admin_id = _get_or_create_admin_id(cursor, admin_username)
+		admin_id = _get_admin_id(cursor, admin_username)
+		if not admin_id:
+			request_handler._set_headers(404, 'application/json')
+			request_handler.wfile.write(json.dumps({"status": "error", "message": "Admin not found"}).encode())
+			return
 
 		cursor.execute("""
 			INSERT INTO AdminMessages (AdminID, ProfessionalID, MessageText, Sender)

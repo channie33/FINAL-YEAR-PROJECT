@@ -5,6 +5,14 @@ let currentChatProfessionalId = null;
 let currentChatProfessionalName = '';
 let isAdminChat = false;
 
+function authHeaders(extraHeaders = {}) {
+    const token = localStorage.getItem('auth_token');
+    return {
+        'Authorization': 'Bearer ' + token,
+        ...extraHeaders
+    };
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const userId = getLoggedInUserId();
     if (!userId) {
@@ -58,7 +66,9 @@ function getLoggedInUserId() {
 
 async function loadStudentMessages(userId) {
     try {
-        const response = await fetch(`/api/student/messages?user_id=${userId}`);
+        const response = await fetch(`/api/student/messages?user_id=${userId}`, {
+            headers: authHeaders()
+        });
         const data = await response.json();
 
         if (response.ok && data.status === 'success') {
@@ -134,7 +144,9 @@ async function loadChatMessages() {
     }
 
     try {
-        const response = await fetch(`/api/messages?student_id=${currentUserId}&professional_id=${currentChatProfessionalId}`);
+        const response = await fetch(`/api/messages?student_id=${currentUserId}&professional_id=${currentChatProfessionalId}`, {
+            headers: authHeaders()
+        });
         const data = await response.json();
         if (response.ok && data.status === 'success') {
             renderChatMessages(data.data || []);
@@ -190,7 +202,7 @@ async function sendChatMessage() {
     try {
         const response = await fetch('/api/messages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({
                 student_id: currentUserId,
                 professional_id: currentChatProfessionalId,
@@ -237,7 +249,9 @@ async function loadAdminMessages() {
     }
 
     try {
-        const response = await fetch(`/api/student/admin-messages?user_id=${currentUserId}&admin_username=${encodeURIComponent(ADMIN_USERNAME)}`);
+        const response = await fetch(`/api/student/admin-messages?user_id=${currentUserId}&admin_username=${encodeURIComponent(ADMIN_USERNAME)}`, {
+            headers: authHeaders()
+        });
         const data = await response.json();
         if (response.ok && data.status === 'success') {
             renderChatMessages(data.data.messages || [], true);
@@ -285,7 +299,7 @@ async function sendAdminMessage(messageText) {
     try {
         const response = await fetch('/api/student/admin-messages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({
                 student_id: currentUserId,
                 admin_username: ADMIN_USERNAME,
@@ -294,6 +308,8 @@ async function sendAdminMessage(messageText) {
         });
         const data = await response.json();
         if (response.ok && data.status === 'success') {
+            const input = document.getElementById('chatInput');
+            if (input) input.value = '';
             loadAdminMessages();
         } else {
             showError(data.message || 'Failed to send message');

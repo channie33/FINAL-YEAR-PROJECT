@@ -125,6 +125,26 @@ body {
     transform: translateY(-1px);
 }
 
+.form-links {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 15px;
+}
+
+.forgot-password-link {
+    color: #1a4d3e;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    letter-spacing: 0.5px;
+}
+
+.forgot-password-link:hover {
+    color: #2d6b5a;
+    text-decoration: underline;
+    font-weight: 500;
+}
+
 
 /* To make it responsive */
 @media (max-width: 768px) {

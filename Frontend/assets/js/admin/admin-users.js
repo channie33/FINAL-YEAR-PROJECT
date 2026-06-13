@@ -1,7 +1,17 @@
 
-// Auth guard — redirect to login if not authenticated
-if (sessionStorage.getItem("betterspace_admin") !== "true") {
-    window.location.href = "login.html";
+// Robust auth check with redirect on unauthorized
+function checkAdminAuth() {
+    var adminToken = sessionStorage.getItem("betterspace_admin_token");
+    if (!adminToken) {
+        window.location.href = "login.html";
+        return false;
+    }
+    return true;
+}
+
+// Auth guard on page load
+if (!checkAdminAuth()) {
+    throw new Error("Not authenticated");
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -11,7 +21,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Logout button
     document.querySelector('.sidebar-item.logout').addEventListener('click', function (e) {
         e.preventDefault();
-        sessionStorage.removeItem("betterspace_admin");
+        sessionStorage.removeItem("betterspace_admin_token");
+        // Force page reload to clear any cached content
         window.location.href = "/assets/pages/shared/index.html";
     });
 
@@ -21,8 +32,19 @@ const ADMIN_USERNAME = 'admin';
 
 async function loadAllUsers() {
     try {
-        const response = await fetch('/api/admin/users');
+        const response = await fetch('/api/admin/users', {
+            headers: {
+                'Authorization': 'Bearer ' + sessionStorage.getItem("betterspace_admin_token")
+            }
+        });
         const data = await response.json();
+
+        // If unauthorized, redirect to login
+        if (response.status === 401 || response.status === 403) {
+            sessionStorage.removeItem("betterspace_admin_token");
+            window.location.href = "login.html";
+            return;
+        }
 
         if (response.ok) {
             displayUsers(data.users);

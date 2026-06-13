@@ -3,11 +3,21 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Get user info from localStorage
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userId = user.id || user.user_id;
+    const authToken = localStorage.getItem('auth_token');
+
+    function authHeaders(extraHeaders = {}) {
+        return {
+            'Authorization': 'Bearer ' + authToken,
+            ...extraHeaders
+        };
+    }
 
     // Fetch and display professional profile
     async function loadProfessionalProfile() {
         try {
-            const response = await fetch(`/api/professional/profile?user_id=${userId}`);
+            const response = await fetch(`/api/professional/profile?user_id=${userId}`, {
+                headers: authHeaders()
+            });
             const data = await response.json();
             
             if (!response.ok || data.status !== 'success') {

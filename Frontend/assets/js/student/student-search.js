@@ -2,6 +2,13 @@ document.addEventListener('DOMContentLoaded', async function () {
     var listEl = document.getElementById('resultsList');
     var searchInput = document.getElementById('searchInput');
     var results = await fetchResults();
+    var authToken = localStorage.getItem('auth_token');
+
+    function authHeaders(extraHeaders) {
+        return Object.assign({
+            'Authorization': 'Bearer ' + authToken
+        }, extraHeaders || {});
+    }
 
     // Get query parameter from URL
     var urlParams = new URLSearchParams(window.location.search);
@@ -165,7 +172,7 @@ document.addEventListener('DOMContentLoaded', async function () {
             var res = await fetch('/api/messages', {
                 method: 'POST',
                 credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     student_id: studentId,
                     professional_id: professionalId,

@@ -3,12 +3,12 @@ import json #for json parsing and responses
 from urllib.parse import urlparse, parse_qs
 import mimetypes #used for serving correct content types
 import os #filepath handling
-from .auth import handle_register, handle_login, handle_verify_otp, handle_get_user
+from .auth import handle_register, handle_login, handle_verify_otp, handle_get_user, handle_forgot_password, handle_reset_password
 from .professionals import handle_submit_verification, get_professional_profile, get_professional_messages, get_professional_sessions, get_all_professionals
 from .student import get_student_profile, get_student_messages, get_student_sessions, add_student_review
 from .admin import (get_pending_verifications, verify_professional, get_all_users, get_verification_document,
     get_report_user_registrations, get_report_sessions, get_report_verification,
-    get_report_feedback, get_report_messaging)
+    get_report_feedback, get_report_messaging, admin_login)
 from .messages import (
     get_student_admin_messages,
     send_student_admin_message,
@@ -22,6 +22,7 @@ from .messages import (
 from .sessions import get_slots, book_session
 from .api import test_database
 from config import ALLOWED_ORIGIN
+from utils.security import verify_jwt_token
 
 # Frontend directory
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))#to get project root directory
@@ -29,7 +30,7 @@ FRONTEND_DIR = os.path.join(BASE_DIR, 'Frontend')#path to the frontend folder
 
 class RequestHandler(BaseHTTPRequestHandler):
     
-    def _set_headers(self, status=200, content_type='text/html'):
+    def _set_headers(self, status=200, content_type='text/html', extra_headers=None):
         self.send_response(status)
         self.send_header('Content-type', content_type)
         self.send_header('Access-Control-Allow-Origin', ALLOWED_ORIGIN)
@@ -42,7 +43,31 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.send_header('X-XSS-Protection', '1; mode=block')
         self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
         self.send_header('Referrer-Policy', 'strict-origin-when-cross-origin')
+        if extra_headers:
+            for header_name, header_value in extra_headers.items():
+                self.send_header(header_name, header_value)
         self.end_headers()
+
+    def _require_auth(self, allowed_user_types=None):
+        auth_header = self.headers.get('Authorization', '')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            self._set_headers(401, 'application/json')
+            self.wfile.write(json.dumps({"status": "error", "message": "Missing or invalid Authorization header"}).encode())
+            return None
+
+        token = auth_header.split(' ', 1)[1]
+        payload = verify_jwt_token(token)
+        if 'error' in payload:
+            self._set_headers(401, 'application/json')
+            self.wfile.write(json.dumps({"status": "error", "message": payload['error']}).encode())
+            return None
+
+        if allowed_user_types and payload.get('user_type') not in allowed_user_types:
+            self._set_headers(403, 'application/json')
+            self.wfile.write(json.dumps({"status": "error", "message": "Insufficient permissions"}).encode())
+            return None
+
+        return payload
     
     def do_OPTIONS(self):
         self._set_headers(204)
@@ -80,6 +105,13 @@ class RequestHandler(BaseHTTPRequestHandler):
             # Accept both student_id and user_id for compatibility
             student_id = query_params.get('student_id', [None])[0] or query_params.get('user_id', [None])[0]
             if student_id:
+                payload = self._require_auth(['student'])
+                if not payload:
+                    return
+                if str(payload.get('user_id')) != str(student_id):
+                    self._set_headers(403, 'application/json')
+                    self.wfile.write(json.dumps({"status": "error", "message": "Forbidden"}).encode())
+                    return
                 get_student_profile(self, student_id)
             else:
                 self._set_headers(400, 'application/json')
@@ -88,6 +120,13 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == '/api/student/messages':
             student_id = query_params.get('student_id', [None])[0] or query_params.get('user_id', [None])[0]
             if student_id:
+                payload = self._require_auth(['student'])
+                if not payload:
+                    return
+                if str(payload.get('user_id')) != str(student_id):
+                    self._set_headers(403, 'application/json')
+                    self.wfile.write(json.dumps({"status": "error", "message": "Forbidden"}).encode())
+                    return
                 get_student_messages(self, student_id)
             else:
                 self._set_headers(400, 'application/json')
@@ -97,6 +136,13 @@ class RequestHandler(BaseHTTPRequestHandler):
             student_id = query_params.get('student_id', [None])[0] or query_params.get('user_id', [None])[0]
             admin_username = query_params.get('admin_username', ['admin'])[0]
             if student_id:
+                payload = self._require_auth(['student'])
+                if not payload:
+                    return
+                if str(payload.get('user_id')) != str(student_id):
+                    self._set_headers(403, 'application/json')
+                    self.wfile.write(json.dumps({"status": "error", "message": "Forbidden"}).encode())
+                    return
                 get_student_admin_messages(self, student_id, admin_username)
             else:
                 self._set_headers(400, 'application/json')
@@ -105,6 +151,13 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == '/api/student/sessions':
             student_id = query_params.get('student_id', [None])[0] or query_params.get('user_id', [None])[0]
             if student_id:
+                payload = self._require_auth(['student'])
+                if not payload:
+                    return
+                if str(payload.get('user_id')) != str(student_id):
+                    self._set_headers(403, 'application/json')
+                    self.wfile.write(json.dumps({"status": "error", "message": "Forbidden"}).encode())
+                    return
                 get_student_sessions(self, student_id)
             else:
                 self._set_headers(400, 'application/json')
@@ -114,6 +167,13 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == '/api/professional/profile':
             user_id = query_params.get('user_id', [None])[0]
             if user_id:
+                payload = self._require_auth(['professional'])
+                if not payload:
+                    return
+                if str(payload.get('user_id')) != str(user_id):
+                    self._set_headers(403, 'application/json')
+                    self.wfile.write(json.dumps({"status": "error", "message": "Forbidden"}).encode())
+                    return
                 get_professional_profile(self, user_id)
             else:
                 self._set_headers(400, 'application/json')
@@ -122,6 +182,13 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == '/api/professional/messages':
             user_id = query_params.get('user_id', [None])[0]
             if user_id:
+                payload = self._require_auth(['professional'])
+                if not payload:
+                    return
+                if str(payload.get('user_id')) != str(user_id):
+                    self._set_headers(403, 'application/json')
+                    self.wfile.write(json.dumps({"status": "error", "message": "Forbidden"}).encode())
+                    return
                 get_professional_messages(self, user_id)
             else:
                 self._set_headers(400, 'application/json')
@@ -131,6 +198,13 @@ class RequestHandler(BaseHTTPRequestHandler):
             user_id = query_params.get('user_id', [None])[0]
             admin_username = query_params.get('admin_username', ['admin'])[0]
             if user_id:
+                payload = self._require_auth(['professional'])
+                if not payload:
+                    return
+                if str(payload.get('user_id')) != str(user_id):
+                    self._set_headers(403, 'application/json')
+                    self.wfile.write(json.dumps({"status": "error", "message": "Forbidden"}).encode())
+                    return
                 get_professional_admin_messages(self, user_id, admin_username)
             else:
                 self._set_headers(400, 'application/json')
@@ -139,6 +213,13 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == '/api/professional/sessions':
             user_id = query_params.get('user_id', [None])[0]
             if user_id:
+                payload = self._require_auth(['professional'])
+                if not payload:
+                    return
+                if str(payload.get('user_id')) != str(user_id):
+                    self._set_headers(403, 'application/json')
+                    self.wfile.write(json.dumps({"status": "error", "message": "Forbidden"}).encode())
+                    return
                 get_professional_sessions(self, user_id)
             else:
                 self._set_headers(400, 'application/json')
@@ -151,6 +232,17 @@ class RequestHandler(BaseHTTPRequestHandler):
             student_id = query_params.get('student_id', [None])[0]
             professional_id = query_params.get('professional_id', [None])[0]
             if student_id and professional_id:
+                payload = self._require_auth(['student', 'professional'])
+                if not payload:
+                    return
+                if payload.get('user_type') == 'student' and str(payload.get('user_id')) != str(student_id):
+                    self._set_headers(403, 'application/json')
+                    self.wfile.write(json.dumps({"status": "error", "message": "Forbidden"}).encode())
+                    return
+                if payload.get('user_type') == 'professional' and str(payload.get('user_id')) != str(professional_id):
+                    self._set_headers(403, 'application/json')
+                    self.wfile.write(json.dumps({"status": "error", "message": "Forbidden"}).encode())
+                    return
                 get_conversation(self, student_id, professional_id)
             else:
                 self._set_headers(400, 'application/json')
@@ -204,6 +296,14 @@ class RequestHandler(BaseHTTPRequestHandler):
         elif path == '/api/user':
             user_id = query_params.get('user_id', [None])[0]
             user_type = query_params.get('user_type', [None])[0]
+            payload = self._require_auth(['student', 'professional', 'admin'])
+            if not payload:
+                return
+            if payload.get('user_type') != 'admin':
+                if str(payload.get('user_id')) != str(user_id) or payload.get('user_type') != user_type:
+                    self._set_headers(403, 'application/json')
+                    self.wfile.write(json.dumps({"status": "error", "message": "Forbidden"}).encode())
+                    return
             handle_get_user(self, user_id, user_type)
 
         else:#unknown path
@@ -248,21 +348,52 @@ class RequestHandler(BaseHTTPRequestHandler):
                 handle_register(self, data)
             elif path == '/api/login':
                 handle_login(self, data)
+            elif path == '/api/admin/login':
+                admin_login(self, data)
             elif path == '/api/verify-otp':
                 handle_verify_otp(self, data)
+            elif path == '/api/forgot-password':
+                handle_forgot_password(self, data)
+            elif path == '/api/reset-password':
+                handle_reset_password(self, data)
             elif path == '/api/student/admin-messages':
+                payload = self._require_auth(['student'])
+                if not payload:
+                    return
+                data['student_id'] = payload.get('user_id')
                 send_student_admin_message(self, data)
             elif path == '/api/student/reviews':
+                payload = self._require_auth(['student'])
+                if not payload:
+                    return
+                data['student_id'] = payload.get('user_id')
                 add_student_review(self, data)
             elif path == '/api/professional/admin-messages':
+                payload = self._require_auth(['professional'])
+                if not payload:
+                    return
+                data['professional_id'] = payload.get('user_id')
                 send_professional_admin_message(self, data)
             elif path == '/api/admin/messages':
                 send_admin_message(self, data)
             elif path == '/api/messages':
+                payload = self._require_auth(['student', 'professional'])
+                if not payload:
+                    return
+                if payload.get('user_type') == 'student':
+                    data['student_id'] = payload.get('user_id')
+                    data['sender'] = 'Student'
+                elif payload.get('user_type') == 'professional':
+                    data['professional_id'] = payload.get('user_id')
+                    data['sender'] = 'Professional'
                 send_message(self, data)
             elif path == '/api/admin/verify-professional':
                 verify_professional(self, data)
             elif path == '/api/sessions':
+                payload = self._require_auth(['student'])
+                if not payload:
+                    return
+                data['student_id'] = payload.get('user_id')
                 book_session(self, data)
             else:
                 self._set_headers(404, 'application/json')
@@ -284,7 +415,16 @@ class RequestHandler(BaseHTTPRequestHandler):
             if content_type is None:
                 content_type = 'application/octet-stream'
 
-            self._set_headers(200, content_type)
+            ext = os.path.splitext(file_path)[1].lower()
+            if ext in ['.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico']:
+                cache_control = 'public, max-age=3600'
+            else:
+                cache_control = 'no-store, no-cache, must-revalidate'
+
+            self._set_headers(200, content_type, {
+                'Cache-Control': cache_control,
+                'Content-Length': str(len(content))
+            })
             self.wfile.write(content)
         except FileNotFoundError:
             self._set_headers(404)

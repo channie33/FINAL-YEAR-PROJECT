@@ -11,6 +11,10 @@ import re
 login_attempts = defaultdict(list)
 csrf_tokens = set()
 
+# Token cache with TTL to reduce verification overhead
+token_cache = {}
+token_cache_ttl = {}
+
 def create_jwt_token(user_id, user_type, expires_in_hours=24):
     """Create a JWT token for a user"""
     try:
@@ -27,9 +31,26 @@ def create_jwt_token(user_id, user_type, expires_in_hours=24):
         return None
 
 def verify_jwt_token(token):
-    """Verify and decode a JWT token"""
+    """Verify and decode a JWT token with caching"""
+    
+    # Check cache first
+    if token in token_cache:
+        cached_time = token_cache_ttl.get(token, 0)
+        if time.time() < cached_time:
+            return token_cache[token]
+        else:
+            # Expired cache entry, remove it
+            del token_cache[token]
+            if token in token_cache_ttl:
+                del token_cache_ttl[token]
+    
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+        
+        # Cache the result for 60 seconds
+        token_cache[token] = payload
+        token_cache_ttl[token] = time.time() + 60
+        
         return payload
     except jwt.ExpiredSignatureError:
         return {'error': 'Token expired'}
