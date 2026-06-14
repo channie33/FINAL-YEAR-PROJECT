@@ -14,16 +14,165 @@ if (!checkAdminAuth()) {
 }
 
 const ADMIN_USERNAME = 'admin';
+const ADMIN_CONVERSATION_SEEN_KEY = 'betterspace_admin_conversation_seen_v2';
 let currentChatType = null; // 'student' or 'professional'
 let currentChatUserId = null;
 let currentChatUserName = '';
 let conversations = []; // Store all conversations
+let allAdminMessages = []; // Latest admin-visible messages cache
+let conversationSeenMap = loadConversationSeenMap();
+
+function toMillis(value) {
+    if (!value) {
+        return 0;
+    }
+    const ms = Date.parse(value);
+    return Number.isNaN(ms) ? 0 : ms;
+}
+
+function safeMs(value) {
+    const ms = Number(value);
+    return Number.isFinite(ms) && ms > 0 ? ms : 0;
+}
+
+function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, function (character) {
+        return ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[character];
+    });
+}
+
+function getConversationKey(type, userId) {
+    return `${type}_${userId}`;
+}
+
+function loadConversationSeenMap() {
+    try {
+        return JSON.parse(localStorage.getItem(ADMIN_CONVERSATION_SEEN_KEY) || '{}');
+    } catch (error) {
+        console.error('Failed to load admin seen map:', error);
+        return {};
+    }
+}
+
+function saveConversationSeenMap() {
+    localStorage.setItem(ADMIN_CONVERSATION_SEEN_KEY, JSON.stringify(conversationSeenMap));
+}
+
+function getMessagesForConversation(type, userId) {
+    return (allAdminMessages || []).filter(msg => {
+        if (type === 'student') {
+            return String(msg.StudentID) === String(userId);
+        }
+        return String(msg.ProfessionalID) === String(userId);
+    });
+}
+
+function getConversationLatestMs(type, userId) {
+    return getMessagesForConversation(type, userId)
+        .reduce((maxMs, msg) => Math.max(maxMs, toMillis(msg.SentAt)), 0);
+}
+
+function getUnreadCount(type, userId) {
+    const key = getConversationKey(type, userId);
+    const latestMs = getConversationLatestMs(type, userId);
+    let seenMs = conversationSeenMap[key];
+
+    if (seenMs === undefined) {
+        // First load: treat existing history as already seen.
+        conversationSeenMap[key] = latestMs;
+        saveConversationSeenMap();
+        seenMs = latestMs;
+    } else {
+        seenMs = safeMs(seenMs);
+        // Self-heal old bad state where seen time was saved with client Date.now().
+        if (seenMs > latestMs) {
+            conversationSeenMap[key] = latestMs;
+            saveConversationSeenMap();
+            seenMs = latestMs;
+        }
+    }
+
+    return getMessagesForConversation(type, userId)
+        .filter(msg => msg.Sender !== 'Admin' && toMillis(msg.SentAt) > seenMs)
+        .length;
+}
+
+function markConversationRead(type, userId) {
+    const key = getConversationKey(type, userId);
+    const latestMs = getConversationLatestMs(type, userId);
+    const currentSeenMs = safeMs(conversationSeenMap[key]);
+    conversationSeenMap[key] = Math.max(currentSeenMs, latestMs);
+    saveConversationSeenMap();
+}
+
+function renderConversationsList() {
+    const conversationsList = document.getElementById('conversationsList');
+    if (!conversationsList) {
+        return;
+    }
+
+    if (!conversations || conversations.length === 0) {
+        conversationsList.innerHTML = '<p style="padding: 20px; text-align: center; color: #666;">No conversations yet</p>';
+        return;
+    }
+
+    conversationsList.innerHTML = '';
+    conversations.forEach(conv => {
+        const typeLabel = conv.type === 'student' ? 'Student' : 'Professional';
+        const unreadCount = getUnreadCount(conv.type, conv.userId);
+        const hasNew = unreadCount > 0;
+
+        const item = document.createElement('div');
+        item.className = 'conversation-item' + (hasNew ? ' new-chat' : '');
+
+        const topRow = document.createElement('div');
+        topRow.className = 'conv-top-row';
+
+        const nameEl = document.createElement('div');
+        nameEl.className = 'conv-name';
+        nameEl.textContent = conv.name || 'User';
+        topRow.appendChild(nameEl);
+
+        if (hasNew) {
+            const unreadDot = document.createElement('span');
+            unreadDot.className = 'unread-dot';
+            unreadDot.setAttribute('aria-label', 'Unread');
+            topRow.appendChild(unreadDot);
+        }
+
+        const typeEl = document.createElement('div');
+        typeEl.className = 'conv-type';
+        typeEl.textContent = typeLabel;
+
+        const timeEl = document.createElement('div');
+        timeEl.className = 'conv-time';
+        timeEl.textContent = new Date(conv.lastMessageTime).toLocaleDateString();
+
+        item.appendChild(topRow);
+        item.appendChild(typeEl);
+        item.appendChild(timeEl);
+        item.addEventListener('click', function () {
+            openChat(conv.type, conv.userId, conv.name);
+        });
+
+        conversationsList.appendChild(item);
+    });
+}
 
 // Global function for opening chat
 function openChat(type, userId, userName) {
     currentChatType = type;
     currentChatUserId = userId;
     currentChatUserName = userName || 'User';
+
+    markConversationRead(type, userId);
+    renderConversationsList();
     
     const chatHeader = document.getElementById('chatHeader');
     const chatPanel = document.getElementById('chatPanel');
@@ -75,7 +224,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
 async function loadConversations() {
     try {
-        const response = await fetch(`/api/admin/messages?admin_username=${encodeURIComponent(ADMIN_USERNAME)}&limit=100`, {
+        const response = await fetch(`/api/admin/messages?admin_username=${encodeURIComponent(ADMIN_USERNAME)}&limit=500`, {
             headers: {
                 'Authorization': 'Bearer ' + sessionStorage.getItem("betterspace_admin_token")
             }
@@ -94,6 +243,7 @@ async function loadConversations() {
         }
         
         const messages = data.data || [];
+        allAdminMessages = messages;
         
         // Group messages by participant
         const conversationMap = new Map();
@@ -123,25 +273,25 @@ async function loadConversations() {
         });
         
         conversations = Array.from(conversationMap.values());
-        
-        // Display conversations in sidebar
-        const conversationsList = document.getElementById('conversationsList');
-        if (conversationsList) {
-            if (conversations.length > 0) {
-                conversationsList.innerHTML = conversations.map(conv => {
-                    const typeLabel = conv.type === 'student' ? 'Student' : 'Professional';
-                    return `
-                        <div class="conversation-item" onclick="openChat('${conv.type}', ${conv.userId}, '${conv.name}')">
-                            <div class="conv-name">${conv.name}</div>
-                            <div class="conv-type">${typeLabel}</div>
-                            <div class="conv-time">${new Date(conv.lastMessageTime).toLocaleDateString()}</div>
-                        </div>
-                    `;
-                }).join('');
-            } else {
-                conversationsList.innerHTML = '<p style="padding: 20px; text-align: center; color: #666;">No conversations yet</p>';
+
+        // Initialize conversation seen state for existing threads so old history is not flagged as unread.
+        let seenMapChanged = false;
+        conversations.forEach(conv => {
+            const key = getConversationKey(conv.type, conv.userId);
+            const latestMs = toMillis(conv.lastMessageTime);
+            if (conversationSeenMap[key] === undefined) {
+                conversationSeenMap[key] = latestMs;
+                seenMapChanged = true;
+            } else if (Number(conversationSeenMap[key]) > latestMs) {
+                conversationSeenMap[key] = latestMs;
+                seenMapChanged = true;
             }
+        });
+        if (seenMapChanged) {
+            saveConversationSeenMap();
         }
+
+        renderConversationsList();
     } catch (error) {
         console.error('Error loading conversations:', error);
         const conversationsList = document.getElementById('conversationsList');
@@ -157,22 +307,15 @@ async function loadChatMessages() {
     }
 
     try {
-        let apiUrl;
-        if (currentChatType === 'student') {
-            apiUrl = `/api/student/admin-messages?student_id=${currentChatUserId}&admin_username=${encodeURIComponent(ADMIN_USERNAME)}`;
-        } else {
-            apiUrl = `/api/professional/admin-messages?user_id=${currentChatUserId}&admin_username=${encodeURIComponent(ADMIN_USERNAME)}`;
+        // Ensure we have fresh data before filtering a specific thread.
+        if (!allAdminMessages || allAdminMessages.length === 0) {
+            await loadConversations();
         }
-        
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        
-        if (response.ok && data.status === 'success') {
-            const messages = data.data.messages || data.data || [];
-            renderChatMessages(messages);
-        } else {
-            renderChatMessages([]);
-        }
+
+        const filteredMessages = getMessagesForConversation(currentChatType, currentChatUserId);
+
+        filteredMessages.sort((a, b) => new Date(a.SentAt) - new Date(b.SentAt));
+        renderChatMessages(filteredMessages);
     } catch (error) {
         console.error('Chat fetch error:', error);
         renderChatMessages([]);
@@ -228,8 +371,8 @@ async function sendChatMessage() {
         const data = await response.json();
         if (response.ok && data.status === 'success') {
             input.value = '';
+            await loadConversations(); // Refresh message cache + conversation list
             loadChatMessages();
-            loadConversations(); // Refresh conversation list
         } else {
             showError(data.message || 'Failed to send message');
         }

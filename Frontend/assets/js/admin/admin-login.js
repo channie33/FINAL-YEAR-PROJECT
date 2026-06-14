@@ -1,32 +1,10 @@
  
 (function () {
 
-    async function tryAutoLogin() {
-        var token = sessionStorage.getItem("betterspace_admin_token");
-        if (!token) {
-            return;
-        }
-
-        try {
-            const response = await fetch('/api/admin/users', {
-                headers: {
-                    'Authorization': 'Bearer ' + token
-                }
-            });
-
-            if (response.ok) {
-                window.location.href = "/assets/pages/admin/users.html";
-                return;
-            }
-        } catch (_) {
-            // Ignore network errors and fall back to manual login.
-        }
-
-        // Token is invalid/expired/unusable: remove it to force real login.
-        sessionStorage.removeItem("betterspace_admin_token");
+    // If already logged in, skip straight to users page
+    if (sessionStorage.getItem("betterspace_admin_token")) {
+        window.location.href = "/assets/pages/admin/users.html";
     }
-
-    tryAutoLogin();
 
     document.addEventListener('DOMContentLoaded', function () {
 

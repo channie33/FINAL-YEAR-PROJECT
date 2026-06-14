@@ -117,7 +117,7 @@ async function apiRequest(endpoint, options = {}) {
         // Handle 401 Unauthorized - clear auth and redirect to login
         if (response.status === 401) {
             clearAuth();
-            window.location.href = '/shared/login.html';
+            window.location.href = '/assets/pages/shared/login.html';
             return { status: 'error', message: 'Unauthorized. Please login again.' };
         }
 
@@ -224,5 +224,5 @@ async function register(email, password, userType, firstName, lastName) {
  */
 function logout() {
     clearAuth();
-    window.location.href = '/shared/login.html';
+    window.location.href = '/assets/pages/shared/login.html';
 }

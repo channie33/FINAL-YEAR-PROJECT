@@ -30,11 +30,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
 const ADMIN_USERNAME = 'admin';
 
+function showPageMessage(message) {
+    var existing = document.getElementById('admin-page-message');
+    if (!existing) {
+        existing = document.createElement('p');
+        existing.id = 'admin-page-message';
+        existing.style.color = 'red';
+        existing.style.margin = '20px';
+        document.body.appendChild(existing);
+    }
+    existing.textContent = message;
+}
+
 async function loadAllUsers() {
     try {
+        var adminToken = sessionStorage.getItem("betterspace_admin_token");
+        if (!adminToken) {
+            showPageMessage('Your admin session has expired. Redirecting to login...');
+            window.location.href = 'login.html';
+            return;
+        }
+
         const response = await fetch('/api/admin/users', {
             headers: {
-                'Authorization': 'Bearer ' + sessionStorage.getItem("betterspace_admin_token")
+                'Authorization': 'Bearer ' + adminToken
             }
         });
         const data = await response.json();
@@ -42,6 +61,7 @@ async function loadAllUsers() {
         // If unauthorized, redirect to login
         if (response.status === 401 || response.status === 403) {
             sessionStorage.removeItem("betterspace_admin_token");
+            showPageMessage('Your admin session is invalid. Please log in again.');
             window.location.href = "login.html";
             return;
         }
@@ -50,11 +70,11 @@ async function loadAllUsers() {
             displayUsers(data.users);
         } else {
             console.error('Error:', data.error);
-            document.body.innerHTML += '<p style="color: red; margin: 20px;">Error loading users: ' + data.error + '</p>';
+            showPageMessage('Unable to load admin users right now. Please try again.');
         }
     } catch (error) {
         console.error('Fetch error:', error);
-        document.body.innerHTML += '<p style="color: red; margin: 20px;">Error connecting to server</p>';
+        showPageMessage('Unable to connect to the server. Please check your connection and retry.');
     }
 }
 

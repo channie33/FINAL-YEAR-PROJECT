@@ -133,33 +133,6 @@ def get_pending_verifications(request_handler):
     cursor = connection.cursor(dictionary=True)#creates a cursor to interact with the database
     
     try:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS VerificationDocuments (
-                DocumentID INT AUTO_INCREMENT PRIMARY KEY,
-                ProfessionalID INT NOT NULL,
-                FilePath VARCHAR(500) NOT NULL,
-                OriginalFileName VARCHAR(255) NOT NULL,
-                FileSize INT,
-                MimeType VARCHAR(100),
-                FileHash VARCHAR(64),
-                UploadedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (ProfessionalID)
-                    REFERENCES MentalHealthProfessionals(ProfessionalID)
-            )
-        """)
-        try:
-            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN FileSize INT")
-        except Exception:
-            pass
-        try:
-            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN MimeType VARCHAR(100)")
-        except Exception:
-            pass
-        try:
-            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN FileHash VARCHAR(64)")
-        except Exception:
-            pass
-
         query = """
         SELECT 
             p.ProfessionalID,
@@ -228,35 +201,8 @@ def get_verification_document(request_handler, professional_id):
     cursor = connection.cursor(dictionary=True)
 
     try:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS VerificationDocuments (
-                DocumentID INT AUTO_INCREMENT PRIMARY KEY,
-                ProfessionalID INT NOT NULL,
-                FilePath VARCHAR(500) NOT NULL,
-                OriginalFileName VARCHAR(255) NOT NULL,
-                FileSize INT,
-                MimeType VARCHAR(100),
-                FileHash VARCHAR(64),
-                UploadedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (ProfessionalID)
-                    REFERENCES MentalHealthProfessionals(ProfessionalID)
-            )
-        """)
-        try:
-            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN FileSize INT")
-        except Exception:
-            pass
-        try:
-            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN MimeType VARCHAR(100)")
-        except Exception:
-            pass
-        try:
-            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN FileHash VARCHAR(64)")
-        except Exception:
-            pass
-
         query = """
-        SELECT FilePath, OriginalFileName, MimeType
+        SELECT FilePath, OriginalFileName
         FROM VerificationDocuments
         WHERE ProfessionalID = %s
         ORDER BY UploadedAt DESC
@@ -281,9 +227,7 @@ def get_verification_document(request_handler, professional_id):
             request_handler.wfile.write(response.encode())
             return
 
-        content_type = document.get('MimeType')
-        if not content_type:
-            content_type, _ = mimetypes.guess_type(file_path)
+        content_type, _ = mimetypes.guess_type(file_path)
         if content_type is None:
             content_type = 'application/octet-stream'
 

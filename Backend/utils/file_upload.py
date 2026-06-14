@@ -28,11 +28,6 @@ def validate_file_upload(filename, file_data, allowed_extensions=None, max_file_
         errors.append("No filename provided")
         return False, errors
     
-    # Check for double extensions (security risk)
-    if filename.count('.') > 1:
-        errors.append("Double extensions are not allowed")
-        return False, errors
-    
     # Get file extension
     if '.' not in filename:
         errors.append("File must have an extension")

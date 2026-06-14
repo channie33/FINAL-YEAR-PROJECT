@@ -1,11 +1,20 @@
 import json
 from config import get_db_connection
+from utils.message_encryption import decrypt_message_text, encrypt_message_text
 from utils.security import verify_jwt_token
 
 
 def _json_default(value):
 	"""Fallback serializer for non-JSON types (e.g., datetime)."""
 	return str(value)
+
+
+def _decrypt_message_rows(rows):
+	"""Decrypt MessageText in DB rows while preserving legacy plaintext rows."""
+	for row in rows:
+		if isinstance(row, dict) and 'MessageText' in row:
+			row['MessageText'] = decrypt_message_text(row.get('MessageText'))
+	return rows
 
 def _verify_admin_token(request_handler):
 	"""Verify admin JWT token from Authorization header"""
@@ -105,6 +114,7 @@ def get_student_admin_messages(request_handler, student_id, admin_username):
 			ORDER BY SentAt ASC
 		""", (student_id, admin_id))
 		messages = cursor.fetchall()
+		messages = _decrypt_message_rows(messages)
 
 		last_message_time = messages[-1]['SentAt'] if messages else None
 
@@ -148,6 +158,7 @@ def get_professional_admin_messages(request_handler, professional_id, admin_user
 			ORDER BY SentAt ASC
 		""", (professional_id, admin_id))
 		messages = cursor.fetchall()
+		messages = _decrypt_message_rows(messages)
 
 		last_message_time = messages[-1]['SentAt'] if messages else None
 
@@ -213,6 +224,7 @@ def get_admin_messages(request_handler, admin_username, limit=50):
 			LIMIT %s
 		""", (admin_id, limit))
 		messages = cursor.fetchall()
+		messages = _decrypt_message_rows(messages)
 
 		request_handler._set_headers(200, 'application/json')
 		response = json.dumps({
@@ -243,6 +255,8 @@ def send_admin_message(request_handler, data):
 		request_handler.wfile.write(json.dumps({"status": "error", "message": "Missing target_type, target_id, or message_text"}).encode())
 		return
 
+	encrypted_message_text = encrypt_message_text(message_text)
+
 	connection = get_db_connection()
 	if not connection:
 		request_handler._set_headers(500, 'application/json')
@@ -264,12 +278,12 @@ def send_admin_message(request_handler, data):
 			cursor.execute("""
 				INSERT INTO AdminMessages (AdminID, StudentID, MessageText, Sender)
 				VALUES (%s, %s, %s, 'Admin')
-			""", (admin_id, target_id, message_text))
+			""", (admin_id, target_id, encrypted_message_text))
 		elif target_type == 'professional':
 			cursor.execute("""
 				INSERT INTO AdminMessages (AdminID, ProfessionalID, MessageText, Sender)
 				VALUES (%s, %s, %s, 'Admin')
-			""", (admin_id, target_id, message_text))
+			""", (admin_id, target_id, encrypted_message_text))
 		else:
 			request_handler._set_headers(400, 'application/json')
 			request_handler.wfile.write(json.dumps({"status": "error", "message": "Invalid target_type"}).encode())
@@ -297,6 +311,8 @@ def send_student_admin_message(request_handler, data):
 		request_handler.wfile.write(json.dumps({"status": "error", "message": "Missing student_id or message_text"}).encode())
 		return
 
+	encrypted_message_text = encrypt_message_text(message_text)
+
 	connection = get_db_connection()
 	if not connection:
 		request_handler._set_headers(500, 'application/json')
@@ -315,7 +331,7 @@ def send_student_admin_message(request_handler, data):
 		cursor.execute("""
 			INSERT INTO AdminMessages (AdminID, StudentID, MessageText, Sender)
 			VALUES (%s, %s, %s, 'Student')
-		""", (admin_id, student_id, message_text))
+		""", (admin_id, student_id, encrypted_message_text))
 		connection.commit()
 
 		request_handler._set_headers(200, 'application/json')
@@ -339,6 +355,8 @@ def send_professional_admin_message(request_handler, data):
 		request_handler.wfile.write(json.dumps({"status": "error", "message": "Missing professional_id or message_text"}).encode())
 		return
 
+	encrypted_message_text = encrypt_message_text(message_text)
+
 	connection = get_db_connection()
 	if not connection:
 		request_handler._set_headers(500, 'application/json')
@@ -357,7 +375,7 @@ def send_professional_admin_message(request_handler, data):
 		cursor.execute("""
 			INSERT INTO AdminMessages (AdminID, ProfessionalID, MessageText, Sender)
 			VALUES (%s, %s, %s, 'Professional')
-		""", (admin_id, professional_id, message_text))
+		""", (admin_id, professional_id, encrypted_message_text))
 		connection.commit()
 
 		request_handler._set_headers(200, 'application/json')
@@ -387,6 +405,7 @@ def get_conversation(request_handler, student_id, professional_id):
 			ORDER BY SentAt ASC
 		""", (student_id, professional_id))
 		messages = cursor.fetchall()
+		messages = _decrypt_message_rows(messages)
 
 		request_handler._set_headers(200, 'application/json')
 		response = json.dumps({
@@ -418,6 +437,8 @@ def send_message(request_handler, data):
 		request_handler.wfile.write(json.dumps({"status": "error", "message": "Invalid sender"}).encode())
 		return
 
+	encrypted_message_text = encrypt_message_text(message_text)
+
 	connection = get_db_connection()
 	if not connection:
 		request_handler._set_headers(500, 'application/json')
@@ -429,7 +450,7 @@ def send_message(request_handler, data):
 		cursor.execute("""
 			INSERT INTO Messages (StudentID, ProfessionalID, MessageText, Sender)
 			VALUES (%s, %s, %s, %s)
-		""", (student_id, professional_id, message_text, sender))
+		""", (student_id, professional_id, encrypted_message_text, sender))
 		connection.commit()
 		request_handler._set_headers(200, 'application/json')
 		request_handler.wfile.write(json.dumps({"status": "success"}).encode())

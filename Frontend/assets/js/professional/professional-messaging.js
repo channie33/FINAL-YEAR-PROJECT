@@ -1,8 +1,137 @@
 const ADMIN_USERNAME = 'admin';
+const PROFESSIONAL_CONVERSATION_SEEN_KEY = 'betterspace_professional_conversation_seen_v2';
+const PROFESSIONAL_ADMIN_SEEN_KEY = 'betterspace_professional_admin_seen_v2';
+
+function getAdminSeenMs() {
+    const stored = localStorage.getItem(PROFESSIONAL_ADMIN_SEEN_KEY);
+    return stored === null ? null : Number(stored);
+}
+
+function markAdminRead(latestMs) {
+    const current = getAdminSeenMs() || 0;
+    localStorage.setItem(PROFESSIONAL_ADMIN_SEEN_KEY, String(Math.max(current, latestMs)));
+}
+
+function getLatestAdminSenderMs(messages) {
+    return (messages || []).reduce((max, message) => {
+        if (message.Sender !== 'Admin') {
+            return max;
+        }
+        return Math.max(max, toMillis(message.SentAt));
+    }, 0);
+}
+
+function setAdminBtnDot(visible) {
+    const btn = document.getElementById('messageAdminBtn');
+    if (!btn) return;
+    let dot = btn.querySelector('.admin-unread-dot');
+    if (visible) {
+        if (!dot) {
+            dot = document.createElement('span');
+            dot.className = 'admin-unread-dot';
+            btn.appendChild(dot);
+        }
+        dot.style.display = 'inline-block';
+    } else if (dot) {
+        dot.style.display = 'none';
+    }
+}
 let currentProfessionalId = null;
 let currentChatStudentId = null;
 let currentChatStudentName = '';
 let isAdminChat = false;
+let professionalConversationSeenMap = loadConversationSeenMap();
+
+function toMillis(value) {
+    if (!value) {
+        return 0;
+    }
+    const ms = Date.parse(value);
+    return Number.isNaN(ms) ? 0 : ms;
+}
+
+function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, function (character) {
+        return ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[character];
+    });
+}
+
+function getConversationKey(studentId) {
+    return String(studentId);
+}
+
+function loadConversationSeenMap() {
+    try {
+        return JSON.parse(localStorage.getItem(PROFESSIONAL_CONVERSATION_SEEN_KEY) || '{}');
+    } catch (error) {
+        console.error('Failed to load professional seen map:', error);
+        return {};
+    }
+}
+
+function saveConversationSeenMap() {
+    localStorage.setItem(PROFESSIONAL_CONVERSATION_SEEN_KEY, JSON.stringify(professionalConversationSeenMap));
+}
+
+function markConversationRead(studentId, latestTime) {
+    const key = getConversationKey(studentId);
+    const latestMs = toMillis(latestTime);
+    const currentSeen = Number(professionalConversationSeenMap[key] || 0);
+    professionalConversationSeenMap[key] = Math.max(currentSeen, latestMs);
+    saveConversationSeenMap();
+}
+
+function getLatestStudentSenderMs(messages) {
+    return (messages || []).reduce((max, message) => {
+        if (message.Sender !== 'Student') {
+            return max;
+        }
+        return Math.max(max, toMillis(message.SentAt));
+    }, 0);
+}
+
+async function getUnreadCountForStudent(studentId) {
+    if (!currentProfessionalId) {
+        return 0;
+    }
+
+    try {
+        const response = await fetch(`/api/messages?student_id=${studentId}&professional_id=${currentProfessionalId}`, {
+
+function safeMs(value) {
+    const ms = Number(value);
+    return Number.isFinite(ms) && ms > 0 ? ms : 0;
+}
+            headers: authHeaders()
+        });
+        const data = await response.json();
+    return stored === null ? null : safeMs(stored);
+            return 0;
+        }
+
+        const key = getConversationKey(studentId);
+    localStorage.setItem(PROFESSIONAL_ADMIN_SEEN_KEY, String(Math.max(current, safeMs(latestMs))));
+        const latestIncomingMs = getLatestStudentSenderMs(messages);
+
+        if (professionalConversationSeenMap[key] === undefined) {
+            professionalConversationSeenMap[key] = latestIncomingMs;
+            saveConversationSeenMap();
+    const currentSeen = safeMs(professionalConversationSeenMap[key]);
+        }
+
+        const seenMs = Number(professionalConversationSeenMap[key] || 0);
+        return messages.filter(msg => msg.Sender === 'Student' && toMillis(msg.SentAt) > seenMs).length;
+    } catch (error) {
+        console.error('Unread count fetch error:', error);
+        return 0;
+    }
+}
 
 function authHeaders(extraHeaders = {}) {
     const token = localStorage.getItem('auth_token');
@@ -22,7 +151,7 @@ function openChat(studentId, studentName) {
     const chatPanel = document.getElementById('chatPanel');
     const emptyState = document.getElementById('emptyState');
     
-    if (chatHeader) {
+        const seenMs = safeMs(professionalConversationSeenMap[key]);
         chatHeader.textContent = 'Chat with ' + currentChatStudentName;
     }
     if (chatPanel) {
@@ -54,17 +183,52 @@ document.addEventListener('DOMContentLoaded', async function () {
             }
             
             const conversations = data.data || [];
+
+            const unreadCounts = await Promise.all(
+                conversations.map(conv => getUnreadCountForStudent(conv.StudentID))
+            );
+            const enrichedConversations = conversations.map((conv, index) => ({
+                ...conv,
+                unreadCount: unreadCounts[index] || 0
+            }));
             
             // Display conversations in sidebar
             const conversationsList = document.getElementById('conversationsList');
             if (conversationsList) {
-                if (conversations.length > 0) {
-                    conversationsList.innerHTML = conversations.map(conv => `
-                        <div class="conversation-item" onclick="openChat(${conv.StudentID}, '${conv.FullName}')">
-                            <div class="conv-name">${conv.FullName}</div>
-                            <div class="conv-time">${new Date(conv.last_message_time).toLocaleDateString()}</div>
-                        </div>
-                    `).join('');
+                if (enrichedConversations.length > 0) {
+                    conversationsList.innerHTML = '';
+                    enrichedConversations.forEach(conv => {
+                        const hasNew = Number(conv.unreadCount || 0) > 0;
+                        const item = document.createElement('div');
+                        item.className = 'conversation-item' + (hasNew ? ' new-chat' : '');
+
+                        const topRow = document.createElement('div');
+                        topRow.className = 'conv-top-row';
+
+                        const nameEl = document.createElement('div');
+                        nameEl.className = 'conv-name';
+                        nameEl.textContent = conv.FullName || 'Student';
+                        topRow.appendChild(nameEl);
+
+                        if (hasNew) {
+                            const unreadDot = document.createElement('span');
+                            unreadDot.className = 'unread-dot';
+                            unreadDot.setAttribute('aria-label', 'Unread');
+                            topRow.appendChild(unreadDot);
+                        }
+
+                        const timeEl = document.createElement('div');
+                        timeEl.className = 'conv-time';
+                        timeEl.textContent = new Date(conv.last_message_time).toLocaleDateString();
+
+                        item.appendChild(topRow);
+                        item.appendChild(timeEl);
+                        item.addEventListener('click', function () {
+                            openChat(conv.StudentID, conv.FullName);
+                        });
+
+                        conversationsList.appendChild(item);
+                    });
                 } else {
                     conversationsList.innerHTML = '<p style="padding: 20px; text-align: center; color: #666;">No conversations yet</p>';
                 }
@@ -112,17 +276,22 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     if (userId) {
         window.loadMessages();
+        refreshAdminUnreadDot();
+        window.setInterval(refreshAdminUnreadDot, 15000);
     }
 });
 
 function openAdminChat() {
     isAdminChat = true;
     currentChatStudentId = null;
-    
+
+    // Hide dot immediately; read state is finalized after latest messages load.
+    setAdminBtnDot(false);
+
     const chatHeader = document.getElementById('chatHeader');
     const chatPanel = document.getElementById('chatPanel');
     const emptyState = document.getElementById('emptyState');
-    
+
     if (chatHeader) {
         chatHeader.textContent = 'Chat with Admin';
     }
@@ -132,7 +301,7 @@ function openAdminChat() {
     if (emptyState) {
         emptyState.style.display = 'none';
     }
-    
+
     loadAdminMessages();
 }
 
@@ -149,7 +318,15 @@ async function loadChatMessages() {
         });
         const data = await response.json();
         if (response.ok && data.status === 'success') {
-            renderChatMessages(data.data || []);
+            const messages = data.data || [];
+            const latestIncomingMs = getLatestStudentSenderMs(messages);
+            if (latestIncomingMs > 0) {
+                markConversationRead(currentChatStudentId, latestIncomingMs);
+            }
+            renderChatMessages(messages);
+            if (typeof window.loadMessages === 'function') {
+                window.loadMessages();
+            }
         } else {
             renderChatMessages([]);
         }
@@ -234,13 +411,76 @@ async function loadAdminMessages() {
         });
         const data = await response.json();
         if (response.ok && data.status === 'success') {
-            renderAdminMessages(data.data.messages || []);
+            const messages = data.data.messages || [];
+
+            // Update admin unread dot
+            const latestMs = getLatestAdminSenderMs(messages);
+            let seenMs = getAdminSeenMs();
+            // Self-heal old bad state where seen time was saved with client Date.now().
+            if (seenMs !== null && seenMs > latestMs) {
+                markAdminRead(latestMs);
+                seenMs = latestMs;
+            }
+            if (seenMs === null) {
+                // First visit — show the dot if admin messages exist.
+                setAdminBtnDot(latestMs > 0);
+            } else if (isAdminChat) {
+                markAdminRead(latestMs);
+                setAdminBtnDot(false);
+            } else {
+                const hasUnread = latestMs > seenMs;
+                setAdminBtnDot(hasUnread);
+            }
+
+            renderAdminMessages(messages);
         } else {
             renderAdminMessages([]);
         }
     } catch (error) {
         console.error('Admin fetch error:', error);
         renderAdminMessages([]);
+    }
+}
+
+async function refreshAdminUnreadDot() {
+    if (!currentProfessionalId) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/professional/admin-messages?user_id=${currentProfessionalId}&admin_username=${encodeURIComponent(ADMIN_USERNAME)}`, {
+            headers: authHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok || data.status !== 'success') {
+            return;
+        }
+
+        const messages = data.data.messages || [];
+        const latestMs = getLatestAdminSenderMs(messages);
+        let seenMs = getAdminSeenMs();
+
+        // Self-heal old bad state where seen time was saved with client Date.now().
+        if (seenMs !== null && seenMs > latestMs) {
+            markAdminRead(latestMs);
+            seenMs = latestMs;
+        }
+
+        if (seenMs === null) {
+            setAdminBtnDot(latestMs > 0);
+            return;
+        }
+
+        if (isAdminChat) {
+            markAdminRead(latestMs);
+            setAdminBtnDot(false);
+            return;
+        }
+
+        const hasUnread = latestMs > seenMs;
+        setAdminBtnDot(hasUnread);
+    } catch (error) {
+        console.error('Admin unread check error:', error);
     }
 }
 

@@ -91,12 +91,6 @@ class RequestHandler(BaseHTTPRequestHandler):
             
         #to serve static assets like css, js, images  
         elif path.startswith('/assets/'):
-            # Protect admin page routes from direct URL access.
-            if path.startswith('/assets/pages/admin/') and path != '/assets/pages/admin/login.html':
-                payload = self._require_auth(['admin'])
-                if not payload:
-                    return
-
             # remove leading slash and join to FRONTEND_DIR
             rel_path = path.lstrip('/')
             file_path = os.path.join(FRONTEND_DIR, *rel_path.split('/'))

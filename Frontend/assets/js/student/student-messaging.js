@@ -1,9 +1,138 @@
 // Load student messaging conversations
 const ADMIN_USERNAME = 'admin';
+const STUDENT_CONVERSATION_SEEN_KEY = 'betterspace_student_conversation_seen_v2';
+const STUDENT_ADMIN_SEEN_KEY = 'betterspace_student_admin_seen_v2';
+
+function getAdminSeenMs() {
+    const stored = localStorage.getItem(STUDENT_ADMIN_SEEN_KEY);
+    return stored === null ? null : Number(stored);
+}
+
+function markAdminRead(latestMs) {
+    const current = getAdminSeenMs() || 0;
+    localStorage.setItem(STUDENT_ADMIN_SEEN_KEY, String(Math.max(current, latestMs)));
+}
+
+function getLatestAdminSenderMs(messages) {
+    return (messages || []).reduce((max, message) => {
+        if (message.Sender !== 'Admin') {
+            return max;
+        }
+        return Math.max(max, toMillis(message.SentAt));
+    }, 0);
+}
+
+function setAdminBtnDot(visible) {
+    const btn = document.getElementById('messageAdminBtn');
+    if (!btn) return;
+    let dot = btn.querySelector('.admin-unread-dot');
+    if (visible) {
+        if (!dot) {
+            dot = document.createElement('span');
+            dot.className = 'admin-unread-dot';
+            btn.appendChild(dot);
+        }
+        dot.style.display = 'inline-block';
+    } else if (dot) {
+        dot.style.display = 'none';
+    }
+}
 let currentUserId = null;
 let currentChatProfessionalId = null;
 let currentChatProfessionalName = '';
 let isAdminChat = false;
+let studentConversationSeenMap = loadConversationSeenMap();
+
+function toMillis(value) {
+    if (!value) {
+        return 0;
+    }
+    const ms = Date.parse(value);
+    return Number.isNaN(ms) ? 0 : ms;
+}
+
+function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, function (character) {
+        return ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        })[character];
+    });
+}
+
+function getConversationKey(professionalId) {
+    return String(professionalId);
+}
+
+function loadConversationSeenMap() {
+    try {
+        return JSON.parse(localStorage.getItem(STUDENT_CONVERSATION_SEEN_KEY) || '{}');
+    } catch (error) {
+        console.error('Failed to load student conversation seen map:', error);
+        return {};
+    }
+}
+
+function saveConversationSeenMap() {
+    localStorage.setItem(STUDENT_CONVERSATION_SEEN_KEY, JSON.stringify(studentConversationSeenMap));
+}
+
+function markConversationRead(professionalId, latestTime) {
+    const key = getConversationKey(professionalId);
+    const latestMs = toMillis(latestTime);
+    const currentSeen = Number(studentConversationSeenMap[key] || 0);
+    studentConversationSeenMap[key] = Math.max(currentSeen, latestMs);
+    saveConversationSeenMap();
+}
+
+function getLatestProfessionalSenderMs(messages) {
+    return (messages || []).reduce((max, message) => {
+        if (message.Sender !== 'Professional') {
+            return max;
+        }
+        return Math.max(max, toMillis(message.SentAt));
+    }, 0);
+}
+
+async function getUnreadCountForProfessional(professionalId) {
+    if (!currentUserId) {
+        return 0;
+    }
+
+    try {
+        const response = await fetch(`/api/messages?student_id=${currentUserId}&professional_id=${professionalId}`, {
+            headers: authHeaders()
+        });
+        const data = await response.json();
+
+function safeMs(value) {
+    const ms = Number(value);
+    return Number.isFinite(ms) && ms > 0 ? ms : 0;
+}
+        if (!response.ok || data.status !== 'success') {
+            return 0;
+        }
+    return stored === null ? null : safeMs(stored);
+        const key = getConversationKey(professionalId);
+        const messages = data.data || [];
+        const latestIncomingMs = getLatestProfessionalSenderMs(messages);
+
+    localStorage.setItem(STUDENT_ADMIN_SEEN_KEY, String(Math.max(current, safeMs(latestMs))));
+            studentConversationSeenMap[key] = latestIncomingMs;
+            saveConversationSeenMap();
+            return 0;
+        }
+
+    const currentSeen = safeMs(studentConversationSeenMap[key]);
+        return messages.filter(msg => msg.Sender === 'Professional' && toMillis(msg.SentAt) > seenMs).length;
+    } catch (error) {
+        console.error('Unread count fetch error:', error);
+        return 0;
+    }
+}
 
 function authHeaders(extraHeaders = {}) {
     const token = localStorage.getItem('auth_token');
@@ -23,8 +152,10 @@ document.addEventListener('DOMContentLoaded', function () {
     currentUserId = userId;
 
     loadStudentMessages(userId);
+    refreshAdminUnreadDot();
+    window.setInterval(refreshAdminUnreadDot, 15000);
 
-    const messageAdminBtn = document.getElementById('messageAdminBtn');
+        const seenMs = safeMs(studentConversationSeenMap[key]);
     if (messageAdminBtn) {
         messageAdminBtn.addEventListener('click', function () {
             openAdminChat();
@@ -72,7 +203,16 @@ async function loadStudentMessages(userId) {
         const data = await response.json();
 
         if (response.ok && data.status === 'success') {
-            displayStudentMessages(data.data);
+            const conversations = data.data || [];
+
+            const unreadCounts = await Promise.all(
+                conversations.map(conv => getUnreadCountForProfessional(conv.ProfessionalID))
+            );
+            const enrichedConversations = conversations.map((conv, index) => ({
+                ...conv,
+                unreadCount: unreadCounts[index] || 0
+            }));
+            displayStudentMessages(enrichedConversations);
         } else {
             showError(data.message || 'Failed to load messages');
         }
@@ -94,10 +234,14 @@ function displayStudentMessages(conversations) {
 
     if (conversations && conversations.length > 0) {
         conversations.forEach(conversation => {
+            const hasNew = Number(conversation.unreadCount || 0) > 0;
             const msgCard = document.createElement('div');
-            msgCard.className = 'msg-card';
+            msgCard.className = 'msg-card' + (hasNew ? ' new-chat' : '');
             msgCard.innerHTML = `
-                <div class="msg-name">${conversation.FullName}</div>
+                <div class="msg-top-row">
+                    <div class="msg-name">${escapeHtml(conversation.FullName)}</div>
+                    ${hasNew ? '<span class="unread-dot" aria-label="Unread"></span>' : ''}
+                </div>
                 <div class="msg-time">${new Date(conversation.last_message_time).toLocaleDateString()}</div>
             `;
             
@@ -149,7 +293,13 @@ async function loadChatMessages() {
         });
         const data = await response.json();
         if (response.ok && data.status === 'success') {
-            renderChatMessages(data.data || []);
+            const messages = data.data || [];
+            const latestIncomingMs = getLatestProfessionalSenderMs(messages);
+            if (latestIncomingMs > 0) {
+                markConversationRead(currentChatProfessionalId, latestIncomingMs);
+            }
+            renderChatMessages(messages);
+            loadStudentMessages(currentUserId);
         } else {
             renderChatMessages([]);
         }
@@ -228,10 +378,13 @@ function openAdminChat() {
     isAdminChat = true;
     currentChatProfessionalId = null;
     currentChatProfessionalName = '';
-    
-    // Remove active from all conversation cards
+
+    // Hide dot immediately; read state is finalized after latest messages load.
+    setAdminBtnDot(false);
+
+    // Remove active class from all conversation cards
     document.querySelectorAll('.msg-card').forEach(c => c.classList.remove('active'));
-    
+
     const title = document.getElementById('chatTitle');
     if (title) {
         title.textContent = 'Chat with Admin';
@@ -254,13 +407,76 @@ async function loadAdminMessages() {
         });
         const data = await response.json();
         if (response.ok && data.status === 'success') {
-            renderChatMessages(data.data.messages || [], true);
+            const messages = data.data.messages || [];
+
+            // Update admin unread dot
+            const latestMs = getLatestAdminSenderMs(messages);
+            let seenMs = getAdminSeenMs();
+            // Self-heal old bad state where seen time was saved with client Date.now().
+            if (seenMs !== null && seenMs > latestMs) {
+                markAdminRead(latestMs);
+                seenMs = latestMs;
+            }
+            if (seenMs === null) {
+                // First visit — show the dot if admin messages exist.
+                setAdminBtnDot(latestMs > 0);
+            } else if (isAdminChat) {
+                markAdminRead(latestMs);
+                setAdminBtnDot(false);
+            } else {
+                const hasUnread = latestMs > seenMs;
+                setAdminBtnDot(hasUnread);
+            }
+
+            renderChatMessages(messages, true);
         } else {
             renderChatMessages([], true);
         }
     } catch (error) {
         console.error('Admin fetch error:', error);
         renderChatMessages([], true);
+    }
+}
+
+async function refreshAdminUnreadDot() {
+    if (!currentUserId) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/student/admin-messages?user_id=${currentUserId}&admin_username=${encodeURIComponent(ADMIN_USERNAME)}`, {
+            headers: authHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok || data.status !== 'success') {
+            return;
+        }
+
+        const messages = data.data.messages || [];
+        const latestMs = getLatestAdminSenderMs(messages);
+        let seenMs = getAdminSeenMs();
+
+        // Self-heal old bad state where seen time was saved with client Date.now().
+        if (seenMs !== null && seenMs > latestMs) {
+            markAdminRead(latestMs);
+            seenMs = latestMs;
+        }
+
+        if (seenMs === null) {
+            setAdminBtnDot(latestMs > 0);
+            return;
+        }
+
+        if (isAdminChat) {
+            markAdminRead(latestMs);
+            setAdminBtnDot(false);
+            return;
+        }
+
+        const hasUnread = latestMs > seenMs;
+        setAdminBtnDot(hasUnread);
+    } catch (error) {
+        console.error('Admin unread check error:', error);
     }
 }
 

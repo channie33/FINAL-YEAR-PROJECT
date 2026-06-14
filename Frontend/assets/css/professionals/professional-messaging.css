@@ -56,14 +56,14 @@ body {
 }
 
 /* Notification Badge */
-.nav-links li {
+.nav-links a {
     position: relative;
 }
 
 .notification-badge {
     position: absolute;
-    top: 4px;
-    right: 14px;
+    top: -6px;
+    right: 8px;
     width: 8px;
     height: 8px;
     background-color: #ff4444;
@@ -115,7 +115,19 @@ body {
     font-family: 'Georgia', serif;
     font-size: 13px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    position: relative;
+}
+
+.admin-unread-dot {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #d91e18;
+    box-shadow: 0 0 0 2px #1a4d3e;
+    display: none;
 }
 
 .admin-msg-btn:hover {
@@ -139,6 +151,19 @@ body {
     transition: background-color 0.2s, box-shadow 0.2s;
 }
 
+.conversation-item.new-chat {
+    border-color: #d91e18;
+    box-shadow: 0 0 0 1px rgba(217, 30, 24, 0.15);
+}
+
+.conv-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
 .conversation-item:hover {
     background-color: #f0f0f0;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
@@ -148,7 +173,15 @@ body {
     font-size: 15px;
     font-weight: bold;
     color: #1a4d3e;
-    margin-bottom: 6px;
+}
+
+.unread-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #d91e18;
+    display: inline-block;
+    flex-shrink: 0;
 }
 
 .conversation-item .conv-time {

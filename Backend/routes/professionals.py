@@ -9,6 +9,8 @@ from datetime import datetime
 
 # File upload settings use values from config.py
 # MAX_FILE_SIZE and ALLOWED_EXTENSIONS are imported from config
+ALLOWED_VERIFICATION_EXTENSIONS = ALLOWED_EXTENSIONS
+MAX_VERIFICATION_FILE_SIZE = MAX_FILE_SIZE
 
 
 def _json_default(value):
@@ -258,7 +260,7 @@ def save_verification_documents(user_id, category, document_data, filename):
     if not safe_original_name:
         return {"status": "error", "message": "Invalid filename"}
 
-    file_extension = os.path.splitext(safe_original_name)[1].lower()
+    file_extension = os.path.splitext(safe_original_name)[1].lower().lstrip('.')
     if file_extension not in ALLOWED_VERIFICATION_EXTENSIONS:
         return {"status": "error", "message": "Unsupported file type. Allowed: PDF, PNG, JPG, JPEG"}
 
@@ -283,7 +285,7 @@ def save_verification_documents(user_id, category, document_data, filename):
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     random_suffix = secrets.token_hex(4)
-    stored_filename = f"professional_{normalized_user_id}_{timestamp}_{random_suffix}{file_extension}"
+    stored_filename = f"professional_{normalized_user_id}_{timestamp}_{random_suffix}.{file_extension}"
     file_path = os.path.abspath(os.path.join(upload_dir, stored_filename))
 
     if not file_path.startswith(upload_dir + os.sep):
@@ -311,45 +313,9 @@ def save_verification_documents(user_id, category, document_data, filename):
         connection.start_transaction()
 
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS VerificationDocuments (
-                DocumentID INT AUTO_INCREMENT PRIMARY KEY,
-                ProfessionalID INT NOT NULL,
-                FilePath VARCHAR(500) NOT NULL,
-                OriginalFileName VARCHAR(255) NOT NULL,
-                FileSize INT,
-                MimeType VARCHAR(100),
-                FileHash VARCHAR(64),
-                UploadedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (ProfessionalID)
-                    REFERENCES MentalHealthProfessionals(ProfessionalID)
-            )
-        """)
-
-        try:
-            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN FileSize INT")
-        except Exception:
-            pass
-        try:
-            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN MimeType VARCHAR(100)")
-        except Exception:
-            pass
-        try:
-            cursor.execute("ALTER TABLE VerificationDocuments ADD COLUMN FileHash VARCHAR(64)")
-        except Exception:
-            pass
-        try:
-            cursor.execute("CREATE INDEX idx_verification_professional ON VerificationDocuments (ProfessionalID)")
-        except Exception:
-            pass
-        try:
-            cursor.execute("CREATE INDEX idx_verification_uploaded ON VerificationDocuments (UploadedAt)")
-        except Exception:
-            pass
-
-        cursor.execute("""
-            INSERT INTO VerificationDocuments (ProfessionalID, FilePath, OriginalFileName, FileSize, MimeType, FileHash)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (normalized_user_id, relative_path, safe_original_name, file_size, mime_type, file_hash))
+            INSERT INTO VerificationDocuments (ProfessionalID, FilePath, OriginalFileName)
+            VALUES (%s, %s, %s)
+        """, (normalized_user_id, relative_path, safe_original_name))
         new_document_id = cursor.lastrowid
 
         query = """

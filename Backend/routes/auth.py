@@ -145,7 +145,7 @@ def handle_register(request_handler, data):
     except Exception as e:
         connection.rollback()
         request_handler._set_headers(500, 'application/json')
-        response = json.dumps({"status": "error", "message": str(e)})
+        response = json.dumps({"status": "error", "message": "Registration failed. Please try again."})
         request_handler.wfile.write(response.encode())
     finally:
         cursor.close()
@@ -294,7 +294,7 @@ def handle_login(request_handler, data):
             
     except Exception as e:
         request_handler._set_headers(500, 'application/json')
-        response = json.dumps({"status": "error", "message": str(e)})
+        response = json.dumps({"status": "error", "message": "Login failed. Please try again."})
         request_handler.wfile.write(response.encode())
     finally:
         cursor.close()
@@ -353,7 +353,7 @@ def handle_resend_otp(request_handler, data):
         
     except Exception as e:
         request_handler._set_headers(500, 'application/json')
-        response = json.dumps({"status": "error", "message": str(e)})
+        response = json.dumps({"status": "error", "message": "Failed to resend OTP. Please try again."})
         request_handler.wfile.write(response.encode())
     finally:
         cursor.close()
@@ -425,7 +425,7 @@ def handle_get_user(request_handler, user_id, user_type):
         request_handler.wfile.write(response.encode())
     except Exception as e:
         request_handler._set_headers(500, 'application/json')
-        response = json.dumps({"status": "error", "message": str(e)})
+        response = json.dumps({"status": "error", "message": "Failed to fetch user details."})
         request_handler.wfile.write(response.encode())
     finally:
         cursor.close()
@@ -505,7 +505,7 @@ def handle_forgot_password(request_handler, data):
         
     except Exception as e:
         request_handler._set_headers(500, 'application/json')
-        response = json.dumps({"status": "error", "message": str(e)})
+        response = json.dumps({"status": "error", "message": "Failed to process request. Please try again."})
         request_handler.wfile.write(response.encode())
     finally:
         cursor.close()
@@ -608,7 +608,7 @@ def handle_reset_password(request_handler, data):
     except Exception as e:
         connection.rollback()
         request_handler._set_headers(500, 'application/json')
-        response = json.dumps({"status": "error", "message": str(e)})
+        response = json.dumps({"status": "error", "message": "Failed to reset password. Please try again."})
         request_handler.wfile.write(response.encode())
     finally:
         cursor.close()

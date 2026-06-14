@@ -34,18 +34,21 @@ The project has been upgraded significantly in security, reliability, and perfor
 1. Admin authentication moved from client-side checks to backend JWT authentication.
 2. Hardcoded admin credentials were removed from login flow and replaced with DB-backed verification.
 3. Protected admin APIs now require admin JWT tokens.
-4. Direct URL access to admin pages is now blocked server-side unless admin token is present.
-5. Student/professional APIs now enforce ownership checks to prevent IDOR.
-6. Message sender spoofing was blocked by server-side sender assignment from JWT identity.
-7. Forgot Password flow was added with OTP email delivery and password reset endpoints.
-8. OTP sending was made asynchronous to reduce login/registration latency.
-9. OTP verification now enforces expiry and invalid attempt limits.
-10. Backend switched to ThreadingHTTPServer to improve page asset loading speed.
-11. TLS context was optimized (TLS 1.2+, modern ciphers, session ticket support).
-12. Static file cache headers were added for assets to improve page transitions.
-13. Admin page logout behavior was fixed consistently across admin sections.
-14. Admin login auto-redirect now validates token instead of trusting local session state.
-15. Student admin-message UX issue fixed: input clears after successful send.
+4. Student/professional APIs now enforce ownership checks to prevent IDOR.
+5. Message sender spoofing was blocked by server-side sender assignment from JWT identity.
+6. Forgot Password flow was added with OTP email delivery and password reset endpoints.
+7. OTP sending was made asynchronous to reduce login/registration latency.
+8. OTP verification now enforces expiry and invalid attempt limits.
+9. Backend switched to ThreadingHTTPServer to improve page asset loading speed.
+10. TLS context was optimized (TLS 1.2+, modern ciphers, session ticket support).
+11. Static file cache headers were added for assets to improve page transitions.
+12. Admin page logout behavior was fixed consistently across admin sections.
+13. Admin login auto-redirect now skips directly to users page if session token is present.
+14. Student admin-message UX issue fixed: input clears after successful send.
+15. AES-GCM message encryption added: all messages (student–professional and admin) are encrypted at rest and decrypted transparently on read. Legacy plaintext rows are handled gracefully.
+16. Unread-dot indicator system overhauled across admin, student, and professional messaging pages: dots are now driven purely by incoming-sender server timestamps, stale localStorage values are sanitised with a safe numeric parser, client-clock writes were removed, and first-load state is initialised from real server data.
+17. Conversation list rows now build DOM elements safely with `textContent` instead of injecting participant names directly into innerHTML, eliminating HTML injection risk.
+18. Admin login auto-redirect changed to a simpler synchronous check (no async token probe) because admin APIs already enforce JWT on every request.
 
 ---
 
@@ -126,7 +129,7 @@ Use this map during presentation to quickly show where each core feature is impl
 | JWT creation | Backend/utils/security.py | 18 |
 | JWT verification | Backend/utils/security.py | 33 |
 | Global auth/role guard helper | Backend/routes/request_handler.py | 51 |
-| Server-side admin page protection (/assets/pages/admin/*) | Backend/routes/request_handler.py | 95 |
+| Auth/role guard helper | Backend/routes/request_handler.py | 51 |
 | Route mapping for admin login | Backend/routes/request_handler.py | 357 |
 | Route mapping for forgot/reset password | Backend/routes/request_handler.py | 361, 363 |
 | Route mapping and sender enforcement for chat | Backend/routes/request_handler.py | 385 |
@@ -164,10 +167,12 @@ Use this map during presentation to quickly show where each core feature is impl
 | Functionality | File | Key line(s) |
 |---|---|---|
 | Admin message auth helper | Backend/routes/messages.py | 10 |
+| AES-GCM message encryption helper | Backend/utils/message_encryption.py | 60 |
+| Message decryption on read (all endpoints) | Backend/routes/messages.py | 14 |
 | Get admin conversations/messages | Backend/routes/messages.py | 171 |
-| Send admin message | Backend/routes/messages.py | 231 |
-| Student-professional conversation fetch | Backend/routes/messages.py | 374 |
-| Student-professional message send | Backend/routes/messages.py | 405 |
+| Send admin message (encrypted) | Backend/routes/messages.py | 231 |
+| Student-professional conversation fetch (decrypted) | Backend/routes/messages.py | 374 |
+| Student-professional message send (encrypted) | Backend/routes/messages.py | 405 |
 | Available slots retrieval | Backend/routes/sessions.py | 9 |
 | Session booking | Backend/routes/sessions.py | 42 |
 | Professionals listing for search | Backend/routes/professionals.py | 18 |
@@ -181,12 +186,18 @@ Use this map during presentation to quickly show where each core feature is impl
 | Functionality | File | Key line(s) |
 |---|---|---|
 | Shared API utility configuration | Frontend/assets/js/utils/api.js | 7 |
-| Generic API request wrapper | Frontend/assets/js/utils/api.js | 87 |
+| Generic API request wrapper with 401 redirect fix | Frontend/assets/js/utils/api.js | 87 |
 | GET and POST helpers | Frontend/assets/js/utils/api.js | 147, 154 |
 | FormData upload helper | Frontend/assets/js/utils/api.js | 175 |
 | Shared login and OTP helpers | Frontend/assets/js/utils/api.js | 182, 193 |
-| Shared logout helper | Frontend/assets/js/utils/api.js | 225 |
-| Admin login auto-token validation | Frontend/assets/js/admin/admin-login.js | 4 |
+| Shared logout helper (fixed redirect path) | Frontend/assets/js/utils/api.js | 225 |
+| Shared unread-dot navbar indicator | Frontend/assets/js/utils/message-indicator.js | 1 |
+| Safe numeric timestamp parser (safeMs) | Frontend/assets/js/student/student-messaging.js | ~56 |
+| Incoming-sender unread count (student) | Frontend/assets/js/student/student-messaging.js | ~93 |
+| Safe numeric timestamp parser (safeMs) | Frontend/assets/js/professional/professional-messaging.js | ~56 |
+| Incoming-sender unread count (professional) | Frontend/assets/js/professional/professional-messaging.js | ~93 |
+| Admin conversation unread count (incoming-only) | Frontend/assets/js/admin/admin-messaging.js | ~79 |
+| Admin login auto-redirect (sync session check) | Frontend/assets/js/admin/admin-login.js | 4 |
 | Admin token save on successful login | Frontend/assets/js/admin/admin-login.js | 69 |
 | Admin users page auth + logout handler | Frontend/assets/js/admin/admin-users.js | 3, 22 |
 | Admin verification page auth + logout handler | Frontend/assets/js/admin/admin-verification.js | 4, 23 |
@@ -212,6 +223,7 @@ This section shows how modules connect from UI events to backend routes and data
 | 3 | Auth login handler validates credentials and triggers OTP | Backend/routes/auth.py:191 |
 | 4 | Async email utility sends OTP | Backend/routes/auth.py:21 -> Backend/utils/email.py:9 |
 | 5 | Frontend OTP helper calls POST /api/verify-otp | Frontend/assets/js/utils/api.js:193 |
+| 6 | On 401 response, clearAuth() redirects to correct login path | Frontend/assets/js/utils/api.js:117 |
 | 6 | Router dispatches OTP verification | Backend/routes/request_handler.py:359 |
 | 7 | OTP verification returns JWT token | Backend/routes/auth.py:154 -> Backend/utils/security.py:18 |
 
@@ -224,8 +236,7 @@ This section shows how modules connect from UI events to backend routes and data
 | 3 | Admin login validates against Admins table and returns admin JWT | Backend/routes/admin.py:13 |
 | 4 | Admin token stored in sessionStorage | Frontend/assets/js/admin/admin-login.js:69 |
 | 5 | Admin pages verify token on load | Frontend/assets/js/admin/admin-users.js:3, Frontend/assets/js/admin/admin-verification.js:4, Frontend/assets/js/admin/admin-messaging.js:2, Frontend/assets/js/admin/admin-reports.js:2 |
-| 6 | Server also blocks direct admin page URL access unless token is valid | Backend/routes/request_handler.py:95 |
-| 7 | Admin API handlers validate token before query/response | Backend/routes/admin.py:88 |
+| 5 | Admin API handlers validate token before query/response | Backend/routes/admin.py:88 |
 
 ### C. Messaging connection (student <-> professional)
 
@@ -233,9 +244,11 @@ This section shows how modules connect from UI events to backend routes and data
 |---|---|---|
 | 1 | Frontend sends POST /api/messages | Frontend/assets/js/utils/api.js:154 |
 | 2 | Router applies auth and forces sender identity from JWT | Backend/routes/request_handler.py:385 |
-| 3 | Message write handled in messages module | Backend/routes/messages.py:405 |
-| 4 | Conversation read via GET /api/messages | Backend/routes/request_handler.py:237 -> Backend/routes/messages.py:374 |
-| 5 | Data stored/read from Messages table | Database/schema.sql:57 |
+| 3 | Message text is AES-GCM encrypted before INSERT | Backend/routes/messages.py:437 |
+| 4 | Message write handled in messages module | Backend/routes/messages.py:405 |
+| 5 | Conversation read via GET /api/messages | Backend/routes/request_handler.py:237 -> Backend/routes/messages.py:374 |
+| 6 | Messages decrypted on read before JSON response | Backend/routes/messages.py:14 |
+| 7 | Data stored/read from Messages table | Database/schema.sql:57 |
 
 ### D. Admin messaging connection
 
@@ -243,9 +256,10 @@ This section shows how modules connect from UI events to backend routes and data
 |---|---|---|
 | 1 | Admin messaging UI loads thread list with Authorization header | Frontend/assets/js/admin/admin-messaging.js:76 |
 | 2 | Router dispatches GET /api/admin/messages | Backend/routes/request_handler.py:264 |
-| 3 | Admin messages fetched with admin token verification | Backend/routes/messages.py:171, Backend/routes/messages.py:10 |
-| 4 | Admin sends reply via POST /api/admin/messages | Frontend/assets/js/admin/admin-messaging.js:215 -> Backend/routes/request_handler.py:376 -> Backend/routes/messages.py:231 |
-| 5 | Data stored/read from AdminMessages table | Database/schema.sql:73 |
+| 3 | Admin messages fetched with admin token verification and decrypted | Backend/routes/messages.py:171, Backend/routes/messages.py:14 |
+| 4 | Admin sends reply (encrypted) via POST /api/admin/messages | Frontend/assets/js/admin/admin-messaging.js:215 -> Backend/routes/request_handler.py:376 -> Backend/routes/messages.py:231 |
+| 5 | Unread dot appears for each unread admin thread; cleared on open | Frontend/assets/js/admin/admin-messaging.js:101 |
+| 6 | Data stored/read from AdminMessages table | Database/schema.sql:73 |
 
 ### E. Session booking connection
 
@@ -264,8 +278,8 @@ This section shows how modules connect from UI events to backend routes and data
 |---|---|---|
 | 1 | Frontend sends FormData using apiPostFormData | Frontend/assets/js/utils/api.js:175 |
 | 2 | Router detects multipart/form-data and dispatches verification upload | Backend/routes/request_handler.py:331, Backend/routes/request_handler.py:333 |
-| 3 | Verification upload handler validates and saves file | Backend/routes/professionals.py:451 |
-| 4 | Verification metadata stored in VerificationDocuments table | Database/schema.sql:24 |
+| 3 | Verification upload handler validates file extension (dot-stripped), size, path traversal | Backend/routes/professionals.py:262 |
+| 4 | Verification metadata stored in VerificationDocuments table (ProfessionalID, FilePath, OriginalFileName) | Database/schema.sql:24 |
 | 5 | Admin review endpoint returns pending verification list | Backend/routes/request_handler.py:261 -> Backend/routes/admin.py:125 |
 
 ### G. Forgot password and reset connection
@@ -284,7 +298,7 @@ This section shows how modules connect from UI events to backend routes and data
 |---|---|---|
 | 1 | Admin JS logout handlers remove token and redirect | Frontend/assets/js/admin/admin-users.js:22, Frontend/assets/js/admin/admin-verification.js:23, Frontend/assets/js/admin/admin-messaging.js:66, Frontend/assets/js/admin/admin-reports.js:17 |
 | 2 | HTML fallback also removes token even if script fails | Frontend/assets/pages/admin/users.html:26, Frontend/assets/pages/admin/verification.html:31, Frontend/assets/pages/admin/messaging.html:26, Frontend/assets/pages/admin/reports.html:27 |
-| 3 | After logout, server-side admin page gate blocks direct access | Backend/routes/request_handler.py:95 |
+| 3 | After logout, admin API endpoints still reject requests missing valid token | Backend/routes/admin.py:88 |
 
 ---
 
@@ -321,6 +335,8 @@ Main tables:
 ### Data protection
 
 - Passwords hashed with bcrypt.
+- All chat messages (student–professional and admin) are encrypted at rest with AES-GCM before database write and decrypted transparently on read. Existing plaintext rows are returned as-is for backward compatibility.
+- Encryption key is configured via `MESSAGE_ENCRYPTION_KEY_B64` environment variable; falls back to a key derived from `SECRET_KEY` if not set.
 - TLS enabled for all traffic.
 - Security headers set globally (HSTS, CSP, X-Frame-Options, nosniff, Referrer-Policy).
 
@@ -333,9 +349,12 @@ Main tables:
 ### Important hardening outcomes
 
 - No more client-side-only admin auth bypass.
-- No direct admin page access by URL for unauthenticated users.
+- Admin APIs enforce JWT on every request; unauthenticated calls receive 401/403.
 - No sender impersonation in messaging.
 - Reduced risk of IDOR on student/professional data routes.
+- Messages encrypted at rest; plaintext never stored for new rows.
+- Participant names in conversation lists rendered as `textContent` (not innerHTML), preventing HTML injection.
+- Unread-dot logic hardened with safe numeric parsers so corrupt or missing localStorage values cannot produce `NaN` and break indicator state.
 
 ---
 
@@ -433,6 +452,8 @@ Create .env with at least:
 - SMTP_PORT
 - MAX_FILE_SIZE
 - ALLOWED_EXTENSIONS
+- MESSAGE_ENCRYPTION_KEY_B64 *(32-byte key as urlsafe base64; derived from SECRET_KEY if omitted)*
+- MESSAGE_ENCRYPTION_KEY_ID *(defaults to "v1"; increment when rotating keys)*
 
 ### Install dependencies
 
@@ -440,6 +461,7 @@ If requirements.txt is not UTF-8 on your machine, install manually:
 - bcrypt==5.0.0
 - mysql-connector-python==9.5.0
 - python-dotenv==1.2.1
+- cryptography==42.0.8
 - PyJWT
 
 ### Start the app
@@ -466,7 +488,7 @@ Suggested 6-8 minute live demo:
 6. Professional sees session and replies in messaging.
 7. Student leaves rating/review post-session.
 8. Admin reports dashboard.
-9. Security proof point: direct admin URL without admin token is blocked.
+9. Security proof point: admin APIs reject requests without a valid admin JWT; messages display as readable text (decrypted transparently).
 
 ---
 
@@ -479,7 +501,7 @@ A: To demonstrate core backend fundamentals: manual routing, headers, static ser
 A: Passwords are hashed with bcrypt before storage. No plaintext passwords are stored for student/professional accounts.
 
 ### Q3: How do you prevent admin auth bypass now?
-A: Admin auth is server-side with JWT tokens, protected admin APIs, and server-side gating of admin HTML pages.
+A: Admin auth is server-side with JWT tokens. Every admin API endpoint verifies the token before processing. The admin login page also skips straight to the users page if a valid session token is already present.
 
 ### Q4: How do you prevent users from reading other users' data?
 A: Ownership checks compare JWT identity against requested resource IDs in the request handler.
@@ -523,14 +545,20 @@ A: In-memory OTP/token cache is process-local; no distributed state. Also, some 
 ### Q17: What improvements would you do next?
 A: Redis-backed rate limiting/OTP, refresh token rotation, centralized auth middleware, automated tests, and deployment hardening.
 
-### Q18: What was your biggest bug fixed recently?
-A: Admin access persistence after logout. Fixed by token-clearing consistency and token validation before auto-redirect.
+### Q18: What was the biggest bug fixed recently?
+A: The unread-dot indicator system was unreliable because seen timestamps were compared against all messages rather than only incoming messages, and corrupt localStorage values could produce `NaN`, making dots appear or disappear randomly. Fixed by: tracking unread state against incoming-sender timestamps only, adding a safe numeric parser for all localStorage reads/writes, and removing all client-clock writes from read-state logic.
 
 ### Q19: How do you explain your architecture in one sentence?
 A: A custom HTTPS Python server routes role-based APIs to MySQL-backed modules with JWT auth, OTP verification, and strict admin/protected access controls.
 
 ### Q20: What proves this is not just a frontend prototype?
-A: Core business rules (verification, ownership checks, sender identity, booking restrictions) are enforced server-side.
+A: Core business rules (verification, ownership checks, sender identity, booking restrictions) are enforced server-side. Messages are encrypted at rest using AES-GCM on the backend before database write, proving the backend does real data handling rather than just passing through frontend input.
+
+### Q21: How does message encryption work?
+A: When any message is sent, the backend encrypts the text with AES-GCM using a 32-byte key (configurable via environment variable). The stored value is a prefixed base64 payload containing the nonce and ciphertext. On read, the backend decrypts transparently before returning JSON. Legacy plaintext rows are returned as-is so existing data still works.
+
+### Q22: What happens if the encryption key changes?
+A: The system supports a keyring with multiple key IDs. Old rows are decrypted with the key ID embedded in their prefix, while new rows use the current active key. Rotating the key is done by setting a new `MESSAGE_ENCRYPTION_KEY_B64` and `MESSAGE_ENCRYPTION_KEY_ID`, keeping old keys in `MESSAGE_ENCRYPTION_PREVIOUS_KEYS`.
 
 ---
 
@@ -545,8 +573,15 @@ A: Core business rules (verification, ownership checks, sender identity, booking
 - Made OTP sending asynchronous.
 - Added OTP expiry and retry limits.
 - Added ownership enforcement across student/professional APIs.
-- Enforced admin-only server-side page access for admin HTML routes.
 - Fixed message input clearing issue in student admin-chat flow.
+- Added AES-GCM message encryption for all chat messages (student–professional and admin) with backward-compatible plaintext fallback.
+- Added `message_encryption.py` utility with keyring support for safe key rotation.
+- Overhauled unread-dot indicator: incoming-only timestamps, safe `safeMs()` parser everywhere, client-clock writes removed.
+- Admin login auto-redirect simplified (async probe removed; direct session check).
+- Conversation list rows now use DOM construction with `textContent` instead of innerHTML injection.
+- Professional verification upload: file extension handling fixed (dot-stripping) and simplified INSERT matches current schema.
+- `api.js` 401 redirect path corrected to `/assets/pages/shared/login.html`.
+- `admin-users.js` error messages replaced with safe DOM injection (no `innerHTML +=`).
 
 ---
 
@@ -557,13 +592,15 @@ Use this quick checklist during assessment:
 - Functional role flows: Student, Professional, Admin
 - Professional verification workflow
 - Secure login + OTP + JWT
-- Unauthorized direct admin URL blocked
+- Admin APIs reject unauthenticated/unauthorized requests (401/403)
 - Student cannot access another student's profile via ID change
-- Messaging works both directions
+- Messaging works both directions (messages decrypted and displayed correctly)
+- Unread-dot indicators appear and clear correctly on all messaging pages
 - Session booking updates availability correctly
 - Reports load for admin only
 - HTTPS traffic only
 - App starts cleanly using run.ps1
+- No plaintext passwords or unencrypted messages written to database for new data
 
 ---
 

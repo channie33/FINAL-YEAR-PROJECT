@@ -26,7 +26,7 @@ document.getElementById('verificationForm').addEventListener('submit', async fun
     }
     
     // Resolve professional ID: prefer pending registration session to avoid stale logged-in IDs
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(localStorage.getItem('user_info') || localStorage.getItem('user') || '{}');
     const pendingUserId = localStorage.getItem('pending_user_id');
     const pendingUserType = localStorage.getItem('pending_user_type');
 
@@ -34,7 +34,7 @@ document.getElementById('verificationForm').addEventListener('submit', async fun
 
     if (pendingUserId && pendingUserType === 'professional') {
         submissionUserId = pendingUserId;
-    } else if (user.user_id) {
+    } else if (user.user_id && user.user_type === 'professional') {
         submissionUserId = user.user_id;
     }
 
