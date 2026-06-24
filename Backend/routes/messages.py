@@ -79,6 +79,21 @@ def _ensure_admin_messages_table(cursor):
 	""")
 
 
+def _ensure_messages_table(cursor):
+	cursor.execute("""
+		CREATE TABLE IF NOT EXISTS Messages (
+			MessageID INT AUTO_INCREMENT PRIMARY KEY,
+			StudentID INT NOT NULL,
+			ProfessionalID INT NOT NULL,
+			MessageText TEXT NOT NULL,
+			SentAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			Sender ENUM('Student', 'Professional') NOT NULL,
+			FOREIGN KEY (StudentID) REFERENCES Students(StudentID),
+			FOREIGN KEY (ProfessionalID) REFERENCES MentalHealthProfessionals(ProfessionalID)
+		)
+	""")
+
+
 def _get_admin_id(cursor, admin_username):
 	_ensure_admin_schema(cursor)
 	cursor.execute(
@@ -398,6 +413,7 @@ def get_conversation(request_handler, student_id, professional_id):
 
 	try:
 		cursor = connection.cursor(dictionary=True)
+		_ensure_messages_table(cursor)
 		cursor.execute("""
 			SELECT MessageID, StudentID, ProfessionalID, MessageText, SentAt, Sender
 			FROM Messages
@@ -447,6 +463,7 @@ def send_message(request_handler, data):
 
 	try:
 		cursor = connection.cursor()
+		_ensure_messages_table(cursor)
 		cursor.execute("""
 			INSERT INTO Messages (StudentID, ProfessionalID, MessageText, Sender)
 			VALUES (%s, %s, %s, %s)

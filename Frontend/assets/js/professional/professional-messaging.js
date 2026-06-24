@@ -50,6 +50,11 @@ function toMillis(value) {
     return Number.isNaN(ms) ? 0 : ms;
 }
 
+function safeMs(value) {
+    const ms = Number(value);
+    return Number.isFinite(ms) && ms > 0 ? ms : 0;
+}
+
 function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, function (character) {
         return ({
@@ -103,29 +108,23 @@ async function getUnreadCountForStudent(studentId) {
 
     try {
         const response = await fetch(`/api/messages?student_id=${studentId}&professional_id=${currentProfessionalId}`, {
-
-function safeMs(value) {
-    const ms = Number(value);
-    return Number.isFinite(ms) && ms > 0 ? ms : 0;
-}
             headers: authHeaders()
         });
         const data = await response.json();
-    return stored === null ? null : safeMs(stored);
+        if (!response.ok || data.status !== 'success') {
             return 0;
         }
 
         const key = getConversationKey(studentId);
-    localStorage.setItem(PROFESSIONAL_ADMIN_SEEN_KEY, String(Math.max(current, safeMs(latestMs))));
+        const messages = data.data || [];
         const latestIncomingMs = getLatestStudentSenderMs(messages);
 
         if (professionalConversationSeenMap[key] === undefined) {
             professionalConversationSeenMap[key] = latestIncomingMs;
             saveConversationSeenMap();
-    const currentSeen = safeMs(professionalConversationSeenMap[key]);
         }
 
-        const seenMs = Number(professionalConversationSeenMap[key] || 0);
+        const seenMs = safeMs(professionalConversationSeenMap[key]);
         return messages.filter(msg => msg.Sender === 'Student' && toMillis(msg.SentAt) > seenMs).length;
     } catch (error) {
         console.error('Unread count fetch error:', error);
@@ -150,8 +149,8 @@ function openChat(studentId, studentName) {
     const chatHeader = document.getElementById('chatHeader');
     const chatPanel = document.getElementById('chatPanel');
     const emptyState = document.getElementById('emptyState');
-    
-        const seenMs = safeMs(professionalConversationSeenMap[key]);
+
+    if (chatHeader) {
         chatHeader.textContent = 'Chat with ' + currentChatStudentName;
     }
     if (chatPanel) {

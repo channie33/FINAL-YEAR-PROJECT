@@ -4,6 +4,7 @@ import os
 import bcrypt
 from config import get_db_connection
 from utils.security import create_jwt_token, verify_jwt_token
+from .messages import _ensure_messages_table
 
 
 def _json_default(value):
@@ -476,6 +477,7 @@ def get_report_messaging(request_handler):
         return
     cursor = connection.cursor(dictionary=True)
     try:
+        _ensure_messages_table(cursor)
         cursor.execute("""
             SELECT DATE_FORMAT(SentAt, '%Y-%m') as month,
                    COUNT(*) as total_messages,

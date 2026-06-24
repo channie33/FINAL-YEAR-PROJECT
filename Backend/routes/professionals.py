@@ -6,6 +6,7 @@ import secrets
 from config import get_db_connection, MAX_FILE_SIZE, ALLOWED_EXTENSIONS
 from utils.file_upload import validate_file_upload, calculate_file_hash, sanitize_filename, get_safe_file_path
 from datetime import datetime
+from .messages import _ensure_messages_table
 
 # File upload settings use values from config.py
 # MAX_FILE_SIZE and ALLOWED_EXTENSIONS are imported from config
@@ -175,6 +176,7 @@ def get_professional_messages(request_handler, user_id):
     
     try:
         cursor = connection.cursor(dictionary=True)
+        _ensure_messages_table(cursor)
         
         # Get unique students professional has messaged
         cursor.execute("""

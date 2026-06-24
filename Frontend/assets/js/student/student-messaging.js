@@ -51,6 +51,11 @@ function toMillis(value) {
     return Number.isNaN(ms) ? 0 : ms;
 }
 
+function safeMs(value) {
+    const ms = Number(value);
+    return Number.isFinite(ms) && ms > 0 ? ms : 0;
+}
+
 function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, function (character) {
         return ({
@@ -107,26 +112,21 @@ async function getUnreadCountForProfessional(professionalId) {
             headers: authHeaders()
         });
         const data = await response.json();
-
-function safeMs(value) {
-    const ms = Number(value);
-    return Number.isFinite(ms) && ms > 0 ? ms : 0;
-}
         if (!response.ok || data.status !== 'success') {
             return 0;
         }
-    return stored === null ? null : safeMs(stored);
+
         const key = getConversationKey(professionalId);
         const messages = data.data || [];
         const latestIncomingMs = getLatestProfessionalSenderMs(messages);
 
-    localStorage.setItem(STUDENT_ADMIN_SEEN_KEY, String(Math.max(current, safeMs(latestMs))));
+        if (studentConversationSeenMap[key] === undefined) {
             studentConversationSeenMap[key] = latestIncomingMs;
             saveConversationSeenMap();
             return 0;
         }
 
-    const currentSeen = safeMs(studentConversationSeenMap[key]);
+        const seenMs = safeMs(studentConversationSeenMap[key]);
         return messages.filter(msg => msg.Sender === 'Professional' && toMillis(msg.SentAt) > seenMs).length;
     } catch (error) {
         console.error('Unread count fetch error:', error);
@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function () {
     refreshAdminUnreadDot();
     window.setInterval(refreshAdminUnreadDot, 15000);
 
-        const seenMs = safeMs(studentConversationSeenMap[key]);
+    const messageAdminBtn = document.getElementById('messageAdminBtn');
     if (messageAdminBtn) {
         messageAdminBtn.addEventListener('click', function () {
             openAdminChat();

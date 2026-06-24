@@ -1,5 +1,6 @@
 import json
 from config import get_db_connection
+from .messages import _ensure_messages_table
 
 
 def _json_default(value):
@@ -16,6 +17,7 @@ def get_student_profile(request_handler, user_id):
     
     try:
         cursor = connection.cursor(dictionary=True)
+        _ensure_messages_table(cursor)
         
         # Get student profile info
         cursor.execute(
@@ -93,6 +95,7 @@ def get_student_messages(request_handler, user_id):
     
     try:
         cursor = connection.cursor(dictionary=True)
+        _ensure_messages_table(cursor)
         
         # Get unique professionals student has messaged
         cursor.execute("""
